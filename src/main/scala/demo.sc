@@ -8,8 +8,8 @@ cell1.isSet
 val cell2= Cell(0)
 cell2.isSet
 
-val cell3 = Cell(128)
-print(cell3.isSet)
+val cell3= Cell(4)
+cell3.isSet
 
 case class Field(cells: Array[Cell])
 
