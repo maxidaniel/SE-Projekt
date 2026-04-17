@@ -1,6 +1,9 @@
 package de.htwg_konstanz.se
 
-enum CardType {
+enum CardColour {
+  // Red colours
   case Heart, Diamond
+
+  // Black colours
   case Club, Spade
 }
