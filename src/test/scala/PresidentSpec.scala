@@ -1,14 +1,32 @@
-import de.htwg_konstanz.se.Player
+import de.htwg_konstanz.se.CardKind._
+import de.htwg_konstanz.se.CardColour._
+import de.htwg_konstanz.se.{Card, Player}
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
 
 class PresidentSpec extends AnyWordSpec with Matchers {
-
   "Person" when {
     "name" should {
       val player = Player("Test")
       "be test" in {
         player.getName should be("Test")
+      }
+    }
+  }
+
+  "Card" when {
+    "2 of hearts" should {
+      val card = Card(Heart, 2, Number)
+      "colour should be hearts" in {
+        card.getColour should be(Heart)
+      }
+
+      "value should be 2" in {
+        card.getValue should be(2)
+      }
+
+      "kind should be number" in {
+        card.getKind should be(Number)
       }
     }
   }
