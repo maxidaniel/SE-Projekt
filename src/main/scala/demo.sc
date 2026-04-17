@@ -22,3 +22,8 @@ val house = House(Vector(cell1,cell2))
 
 house.cells(0).value
 house.cells(0).isSet
+
+import de.htwg_konstanz.se.*
+
+val player = Player("Test")
+player.getName
