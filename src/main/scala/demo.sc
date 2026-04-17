@@ -24,6 +24,10 @@ house.cells(0).value
 house.cells(0).isSet
 
 import de.htwg_konstanz.se.*
+import de.htwg_konstanz.se.CardColour.Club
+import de.htwg_konstanz.se.CardKind.King
 
-val player = Player("Test")
+val player = Player("Test", Vector.empty);
 player.getName
+
+val card = Card(Club, 12, King)
