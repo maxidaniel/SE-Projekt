@@ -1,6 +1,6 @@
 package de.htwg_konstanz.se
 
-enum CardKind(value: Int) {
+enum CardKind(val value: Int) {
   case Two extends CardKind(2)
   case Three extends CardKind(3)
   case Four extends CardKind(4)
@@ -14,6 +14,4 @@ enum CardKind(value: Int) {
   case Queen extends CardKind(12)
   case King extends CardKind(13)
   case Ace extends CardKind(14)
-  
-  def getValue: Int = value
 }

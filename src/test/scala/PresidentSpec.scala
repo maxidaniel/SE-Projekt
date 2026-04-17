@@ -1,6 +1,6 @@
-import de.htwg_konstanz.se.CardKind.*
 import de.htwg_konstanz.se.CardColour.*
-import de.htwg_konstanz.se.{Card, CardKind, Game, Player}
+import de.htwg_konstanz.se.CardKind.*
+import de.htwg_konstanz.se.{Card, Game, Player}
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
 
@@ -23,7 +23,7 @@ class PresidentSpec extends AnyWordSpec with Matchers {
 
       "value should be 2" in {
         card.kind should be(Two)
-        card.kind.getValue should be(2)
+        card.kind.value should be(2)
       }
     }
 
@@ -35,7 +35,7 @@ class PresidentSpec extends AnyWordSpec with Matchers {
 
       "value be ace" in {
         card.kind should be(Ace)
-        card.kind.getValue should be(14)
+        card.kind.value should be(14)
       }
     }
   }
