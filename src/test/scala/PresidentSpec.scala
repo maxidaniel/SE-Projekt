@@ -1,6 +1,6 @@
-import de.htwg_konstanz.se.CardKind._
-import de.htwg_konstanz.se.CardColour._
-import de.htwg_konstanz.se.{Card, Player}
+import de.htwg_konstanz.se.CardKind.*
+import de.htwg_konstanz.se.CardColour.*
+import de.htwg_konstanz.se.{Card, CardKind, Game, Player}
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
 
@@ -16,34 +16,43 @@ class PresidentSpec extends AnyWordSpec with Matchers {
 
   "Card" when {
     "2 of hearts" should {
-      val card = Card(Heart, 2, Number)
+      val card = Card(Heart, Two)
       "colour should be hearts" in {
         card.colour should be(Heart)
       }
 
       "value should be 2" in {
-        card.value should be(2)
+        card.kind should be(Two)
+        card.kind.getValue should be(2)
+      }
+    }
+
+    "ace of spades" should {
+      val card = Card(Spade, Ace)
+      "colour be spades" in {
+        card.colour should be(Spade)
       }
 
-      "kind should be number" in {
-        card.kind should be(Number)
+      "value be ace" in {
+        card.kind should be(Ace)
+        card.kind.getValue should be(14)
       }
     }
   }
 
-  "A Card" when {
-    "it is a 2" should {
-      "have a power of 15" in {
-        val power = 15
-        power shouldBe 15
-      }
-    }
+  "Game" when {
+    "cards" should {
+      val cards = Vector(Card(Heart, Seven), Card(Club, Queen), Card(Diamond, Two)) // TODO: Change order of params in Card to be (Kind, Colour)
+      val game = Game(Vector.empty, cards)
 
-    "comparing a King and an Ace" should {
-      "identify the Ace as stronger" in {
-        val ace = 14
-        val king = 13
-        ace should be > king
+      "have a length of 3" in {
+        game.cards.length should be(3)
+      }
+
+      "are shuffled" in {
+        game.cards should be(cards)
+        val shuffled = game.shuffle()
+        shuffled.cards should not be(cards)
       }
     }
   }
