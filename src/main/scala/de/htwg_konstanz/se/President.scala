@@ -1,10 +1,7 @@
 package de.htwg_konstanz.se
 
-import de.htwg_konstanz.se.ui.tui.Tui
-
-import scala.util.Using
+import de.htwg_konstanz.se.ui.tui.TuiReisen
 
 @main def run(): Unit =
-  Using(Tui()) { tui =>
-    tui.run()
-  }
+  val tui = TuiReisen()
+  tui.run()

@@ -1,5 +1,7 @@
 package de.htwg_konstanz.se.models
 
+import scala.collection.mutable.ListBuffer
+
 // TODO: Symbols
 enum CardSuit(val name: String, val symbol: String) {
   case Hearts extends CardSuit("hearts", "♥")
@@ -25,7 +27,52 @@ enum CardRank(val name: String, val symbol: String) {
 }
 
 enum Card(val rank: CardRank, val suit: CardSuit) {
+  // Unscaled width and height
+  private val base_width = 3
+  private val base_height = 5
+
   override def toString: String = s"${if (rank == null) '?' else rank.symbol} ${if (suit == null) '?' else suit.symbol}"
+
+  def render(scale: Int = 1): Vector[String] = {
+    val r = if (rank == null) "?" else rank.symbol
+    val s = if (suit == null) "?" else suit.symbol
+    
+    val width = 9 + (scale - 1) * 10 
+    val height = 5 + (scale - 1) * 6
+    
+    val innerWidth = 9 + (scale - 1) * 10
+    val innerHeight = 5 + (scale - 1) * 6
+    val mid = innerHeight / 2
+
+    val top = "┌" + "─" * innerWidth + "┐"
+    val bottom = "└" + "─" * innerWidth + "┘"
+    
+    val rankLeft = if (r.length == 1) s"$r " else r
+    val rankRight = if (r.length == 1) s" $r" else r
+    
+    val lines = ListBuffer[String]()
+    lines += top
+    
+    // Rank line top
+    lines += s"│ $rankLeft" + " " * (innerWidth - 1 - rankLeft.length) + "│"
+    
+    // Middle lines
+    for (i <- 1 until innerHeight - 1) {
+      if (i == mid) {
+        val leftPad = (innerWidth - s.length) / 2
+        val rightPad = innerWidth - s.length - leftPad
+        lines += s"│" + " " * leftPad + s + " " * rightPad + "│"
+      } else {
+        lines += "│" + " " * innerWidth + "│"
+      }
+    }
+    
+    // Rank line bottom
+    lines += s"│" + " " * (innerWidth - 1 - rankRight.length) + s"$rankRight │"
+    
+    lines += bottom
+    lines.toVector
+  }
 
   case Unknown extends Card(null, null)
 
