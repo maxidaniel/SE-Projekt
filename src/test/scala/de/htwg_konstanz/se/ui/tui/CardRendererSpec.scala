@@ -7,8 +7,7 @@ import org.scalatest.wordspec.AnyWordSpec
 class CardRendererSpec extends AnyWordSpec {
   "A CardRenderer" should {
     "render with requested user scale if terminal allows it" in {
-      val renderer = CardRenderer()
-      val result = renderer.render(
+      val result = CardRenderer.render(
         cards = Seq(Card.AceOfSpades),
         terminalWidth = 80,
         terminalHeight = 30,
@@ -20,8 +19,7 @@ class CardRendererSpec extends AnyWordSpec {
     }
 
     "overlap cards" in {
-      val renderer = CardRenderer()
-      val result = renderer.render(
+      val result = CardRenderer.render(
         cards = Seq(Card.AceOfSpades, Card.KingOfHearts),
         terminalWidth = 80,
         terminalHeight = 30
@@ -33,8 +31,7 @@ class CardRendererSpec extends AnyWordSpec {
     }
 
     "reduce scale to fit terminal size" in {
-      val renderer = CardRenderer()
-      val result = renderer.render(
+      val result = CardRenderer.render(
         cards = Seq(Card.AceOfSpades),
         terminalWidth = 11,
         terminalHeight = 7,
@@ -46,8 +43,7 @@ class CardRendererSpec extends AnyWordSpec {
     }
 
     "clip output to tiny terminal dimensions" in {
-      val renderer = CardRenderer()
-      val result = renderer.render(
+      val result = CardRenderer.render(
         cards = Seq(Card.AceOfSpades, Card.KingOfHearts),
         terminalWidth = 6,
         terminalHeight = 4,
@@ -59,16 +55,13 @@ class CardRendererSpec extends AnyWordSpec {
     }
 
     "return an empty render for invalid dimensions or empty cards" in {
-      val renderer = CardRenderer()
-
-      renderer.render(Seq.empty, terminalWidth = 80, terminalHeight = 24).lines should be(Vector.empty)
-      renderer.render(Seq(Card.AceOfSpades), terminalWidth = 0, terminalHeight = 24).lines should be(Vector.empty)
-      renderer.render(Seq(Card.AceOfSpades), terminalWidth = 80, terminalHeight = 0).lines should be(Vector.empty)
+      CardRenderer.render(Seq.empty, terminalWidth = 80, terminalHeight = 24).lines should be(Vector.empty)
+      CardRenderer.render(Seq(Card.AceOfSpades), terminalWidth = 0, terminalHeight = 24).lines should be(Vector.empty)
+      CardRenderer.render(Seq(Card.AceOfSpades), terminalWidth = 80, terminalHeight = 0).lines should be(Vector.empty)
     }
 
     "force minimum step when terminal is narrower than a card" in {
-      val renderer = CardRenderer()
-      val result = renderer.render(
+      val result = CardRenderer.render(
         cards = Seq(Card.AceOfSpades, Card.KingOfHearts),
         terminalWidth = 5,
         terminalHeight = 10

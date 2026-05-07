@@ -12,7 +12,7 @@ case class CardRenderResult(
     step: Int
 )
 
-case class CardRenderer() {
+case object CardRenderer {
   def render(
       cards: Seq[Card],
       terminalWidth: Int,

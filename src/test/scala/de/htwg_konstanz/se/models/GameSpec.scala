@@ -3,12 +3,32 @@ package de.htwg_konstanz.se.models
 import org.scalatest.matchers.should.Matchers._
 import org.scalatest.wordspec.AnyWordSpec
 
+import java.util.UUID
+
 class GameSpec extends AnyWordSpec {
   "A game" should {
     "be empty by default" in {
       val game = new Game()
       game.playerHands should be(Map.empty)
       game.playedCards should be(Vector.empty)
+      game.state should be(GameState.WaitingForPlayers)
+    }
+
+    "add a player on join" in {
+      val game = new Game()
+      val playerId = UUID.randomUUID()
+
+      val joined = game.join(playerId)
+      joined.playerHands.keySet should contain(playerId)
+      joined.playerHands(playerId) should be(Vector.empty)
+    }
+
+    "remove a player on leave" in {
+      val playerId = UUID.randomUUID()
+      val game = new Game().join(playerId)
+
+      val afterLeave = game.leave(playerId)
+      afterLeave.playerHands.keySet should not contain playerId
     }
   }
 
