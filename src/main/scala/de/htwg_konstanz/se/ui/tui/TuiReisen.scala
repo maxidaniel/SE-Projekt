@@ -7,14 +7,16 @@ import org.jline.terminal.{Terminal, TerminalBuilder}
 // This class is going to be updated by a service in the future. Refactor it in such a way, that we call Service.register(Tui),
 // which establishes event handling in the tui, and then call Service.run(), which then handles all game state.
 case class TuiReisen() {
-  private val logo: Vector[String] = Vector(
-    ".------..------..------..------..------..------..------..------..------.",
-    "|P.--. ||R.--. ||E.--. ||S.--. ||I.--. ||D.--. ||E.--. ||N.--. ||T.--. |",
-    "| :/\\: || :(): || (\\/) || :/\\: || (\\/) || :/\\: || (\\/) || :(): || :/\\: |",
-    "| (__) || ()() || :\\/: || :\\/: || :\\/: || (__) || :\\/: || ()() || (__) |",
-    "| '--'P|| '--'R|| '--'E|| '--'S|| '--'I|| '--'D|| '--'E|| '--'N|| '--'T|",
-    "`------'`------'`------'`------'`------'`------'`------'`------'`------'"
-  )
+  private val logo: Vector[String] =
+    """|.------..------..------..------..------..------..------..------..------.
+       ||P.--. ||R.--. ||E.--. ||S.--. ||I.--. ||D.--. ||E.--. ||N.--. ||T.--. |
+       || :/\: || :(): || (\/) || :/\: || (\/) || :/\: || (\/) || :(): || :/\: |
+       || (__) || ()() || :\/: || :\/: || :\/: || (__) || :\/: || ()() || (__) |
+       || '--'P|| '--'R|| '--'E|| '--'S|| '--'I|| '--'D|| '--'E|| '--'N|| '--'T|
+       |`------'`------'`------'`------'`------'`------'`------'`------'`------'"""
+      .stripMargin
+      .linesIterator
+      .toVector
 
   private var shouldClose: Boolean = false
 
