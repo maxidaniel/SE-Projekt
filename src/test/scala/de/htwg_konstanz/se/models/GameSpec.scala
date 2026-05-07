@@ -1,6 +1,7 @@
 package de.htwg_konstanz.se.models
 
-import org.scalatest.matchers.should.Matchers._
+import de.htwg_konstanz.se.models.GameState.Playing
+import org.scalatest.matchers.should.Matchers.*
 import org.scalatest.wordspec.AnyWordSpec
 
 import java.util.UUID
@@ -29,6 +30,14 @@ class GameSpec extends AnyWordSpec {
 
       val afterLeave = game.leave(playerId)
       afterLeave.playerHands.keySet should not contain playerId
+    }
+
+    "not add a player on join when playing" in {
+      val game = new Game().copy(state = Playing)
+      val playerId = UUID.randomUUID()
+
+      val afterJoin = game.join(playerId)
+      afterJoin.playerHands.keySet should not contain playerId
     }
   }
 

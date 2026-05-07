@@ -70,5 +70,80 @@ class CardRendererSpec extends AnyWordSpec {
       result.step should be(1)
       result.lines should not be empty
     }
+
+    "clamp non-positive user scale to 1" in {
+      val result = CardRenderer.render(
+        cards = Seq(Card.AceOfSpades),
+        terminalWidth = 80,
+        terminalHeight = 30,
+        options = CardRendererOptions(userScale = 0)
+      )
+
+      result.scale should be(1)
+    }
+
+    "compute centered offsets when terminal is larger than render target" in {
+      val result = CardRenderer.render(
+        cards = Seq(Card.AceOfSpades),
+        terminalWidth = 40,
+        terminalHeight = 20
+      )
+
+      result.offsetX should be(14)
+      result.offsetY should be(6)
+    }
+
+    "reduce horizontal step to fit all cards in constrained width" in {
+      val result = CardRenderer.render(
+        cards = Seq(Card.AceOfSpades, Card.KingOfHearts, Card.QueenOfClubs),
+        terminalWidth = 13,
+        terminalHeight = 20
+      )
+
+      result.step should be(1)
+      result.lines.head.length should be <= 13
+    }
+
+    "treat negative overlapColumns as zero overlap" in {
+      val noOverlap = CardRenderer.render(
+        cards = Seq(Card.AceOfSpades, Card.KingOfHearts),
+        terminalWidth = 80,
+        terminalHeight = 20,
+        options = CardRendererOptions(overlapColumns = 0)
+      )
+      val negativeOverlap = CardRenderer.render(
+        cards = Seq(Card.AceOfSpades, Card.KingOfHearts),
+        terminalWidth = 80,
+        terminalHeight = 20,
+        options = CardRendererOptions(overlapColumns = -10)
+      )
+
+      negativeOverlap.step should be(noOverlap.step)
+      negativeOverlap.lines should be(noOverlap.lines)
+    }
+
+    "allow full overlap with very large overlapColumns" in {
+      val result = CardRenderer.render(
+        cards = Seq(Card.AceOfSpades, Card.KingOfHearts),
+        terminalWidth = 80,
+        terminalHeight = 20,
+        options = CardRendererOptions(overlapColumns = 999)
+      )
+
+      result.step should be(1)
+      result.lines.head.count(_ == '┌') should be(2)
+    }
+
+    "fallback to scale 1 if terminal height is smaller than any card scale" in {
+      val result = CardRenderer.render(
+        cards = Seq(Card.AceOfSpades),
+        terminalWidth = 80,
+        terminalHeight = 1,
+        options = CardRendererOptions(userScale = 5)
+      )
+
+      result.scale should be(1)
+      result.lines.length should be(1)
+    }
   }
 }
