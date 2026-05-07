@@ -10,6 +10,7 @@ enum TuiView {
 
 case class TerminalRenderer(terminal: Terminal) {
   private var currentView: Option[TuiView] = None
+  private var currentLines: Seq[String] = Vector.empty
   private var initialized = false
 
   def initialize(): Unit = {
@@ -21,13 +22,14 @@ case class TerminalRenderer(terminal: Terminal) {
     initialized = true
   }
 
-  def transitionTo(view: TuiView, lines: Vector[String]): Unit = {
+  def transitionTo(view: TuiView, lines: Seq[String]): Unit = {
     if currentView.contains(view) then return
+    currentLines = lines
     render(lines)
     currentView = Some(view)
   }
 
-  def render(lines: Vector[String]): Unit = {
+  def render(lines: Seq[String]): Unit = {
     clear()
 
     val terminalHeight = terminal.getHeight
@@ -46,10 +48,15 @@ case class TerminalRenderer(terminal: Terminal) {
 
     terminal.flush()
   }
+  
+  def windowSizeChanged(): Unit = {
+    render(currentLines)
+  }
 
-  def clear(): Unit =
+  def clear(): Unit = {
     terminal.puts(InfoCmp.Capability.cursor_address, 0, 0)
     terminal.puts(InfoCmp.Capability.clear_screen)
+  }
 
   def close(): Unit = terminal.close()
 

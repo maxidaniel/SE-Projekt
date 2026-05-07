@@ -21,11 +21,15 @@ case class TuiReisen() {
   private val terminal: Terminal = TerminalBuilder.builder().system(true).build()
   private val renderer: TerminalRenderer = TerminalRenderer(terminal)
 
-  terminal.handle(Terminal.Signal.INT, (signal: Signal) => {
+  terminal.handle(Terminal.Signal.INT, _ => {
     terminal.writer().println("Exiting")
     terminal.flush()
 
     shouldClose = true
+  })
+  
+  terminal.handle(Terminal.Signal.WINCH, _ => {
+    renderer.windowSizeChanged()
   })
 
   renderer.initialize()
