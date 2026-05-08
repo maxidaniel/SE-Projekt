@@ -102,7 +102,7 @@ case class TuiReisen() {
   }
 
   // This is the start round/continue to next person handler
-  private def handleEnter(game: Game): Game = {
+  private[tui] def handleEnter(game: Game): Game = {
     game.state match {
       case WaitingForPlayers => game.start()
       case _ => game
@@ -110,7 +110,7 @@ case class TuiReisen() {
   }
 
   // Add player
-  private def handlePlus(game: Game): Game = {
+  private[tui] def handlePlus(game: Game): Game = {
     game.state match {
       case WaitingForPlayers =>
         game.join(UUID.randomUUID()) // TODO
@@ -121,7 +121,7 @@ case class TuiReisen() {
     }
   }
 
-  private def handleMinus(game: Game): Unit = {
+  private[tui] def handleMinus(game: Game): Unit = {
     game.state match {
       case Playing =>
         renderScale = math.max(1, renderScale - 1)
@@ -129,7 +129,7 @@ case class TuiReisen() {
     }
   }
 
-  private def handleEscape(game: Game): Game = {
+  private[tui] def handleEscape(game: Game): Game = {
     game.state match {
       case Playing =>
         renderScale = 1
@@ -140,13 +140,13 @@ case class TuiReisen() {
   }
 
   // Select
-  private def handleSpace(game: Game): Game = {
+  private[tui] def handleSpace(game: Game): Game = {
     game.state match {
       case _ => game
     }
   }
 
-  private def renderObjsForState(game: Game): (TuiView, Vector[RenderObj]) = {
+  private[tui] def renderObjsForState(game: Game): (TuiView, Vector[RenderObj]) = {
     val playersPanel = playerPanelRenderObjs(game)
 
     game.state match {
@@ -189,12 +189,12 @@ case class TuiReisen() {
     }
   }
 
-  private def centeredObject(lines: Vector[String]): RenderObj = {
+  private[tui] def centeredObject(lines: Vector[String]): RenderObj = {
     val startY = math.max(0, terminal.getHeight / 2 - lines.length / 2)
     RenderObj.Centered(0, startY, lines, width = Some(terminal.getWidth))
   }
 
-  private def playerPanelRenderObjs(game: Game): Vector[RenderObj] = {
+  private[tui] def playerPanelRenderObjs(game: Game): Vector[RenderObj] = {
     val panelWidth = math.max(30, math.min(56, terminal.getWidth / 2))
     val panelX = math.max(0, terminal.getWidth - panelWidth - 2)
     val cardsWidth = math.max(10, panelWidth - 18)
@@ -228,6 +228,10 @@ case class TuiReisen() {
     header ++ rows
   }
 
-  private def activeCards(game: Game): Vector[Card] =
+  private[tui] def activeCards(game: Game): Vector[Card] =
     if game.playedCards.nonEmpty then game.playedCards else fallbackActiveCards
+
+  private[tui] def currentRenderScale: Int = renderScale
+  private[tui] def setRenderScale(scale: Int): Unit = renderScale = scale
+  private[tui] def closeForTest(): Unit = renderer.close()
 }
