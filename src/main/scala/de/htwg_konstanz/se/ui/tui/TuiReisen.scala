@@ -1,9 +1,10 @@
 package de.htwg_konstanz.se.ui.tui
 
-import de.htwg_konstanz.se.models.Card
+import de.htwg_konstanz.se.controller.GameController
+import de.htwg_konstanz.se.models.{Card, Game, GameEvent, Player}
 import de.htwg_konstanz.se.models.Card.TenOfSpades
-import de.htwg_konstanz.se.models.Game
 import de.htwg_konstanz.se.models.GameState.{Playing, WaitingForPlayers}
+import de.htwg_konstanz.se.util.Listener
 import org.jline.terminal.Terminal.*
 import org.jline.terminal.{Terminal, TerminalBuilder}
 
@@ -11,7 +12,7 @@ import java.util.UUID
 
 // This class is going to be updated by a service in the future. Refactor it in such a way, that we call Service.register(Tui),
 // which establishes event handling in the tui, and then call Service.run(), which then handles all game state.
-case class TuiReisen() {
+case class TuiReisen(controller: GameController) extends Listener {
   private val fallbackActiveCards: Vector[Card] = Vector(TenOfSpades, TenOfSpades, TenOfSpades, TenOfSpades)
 
   // Source: https://patorjk.com/software/taag/#p=display&f=Cards&t=President&x=none&v=4&h=4&w=80&we=false
@@ -47,29 +48,32 @@ case class TuiReisen() {
 
   def run(): Unit = {
     val reader = terminal.reader()
-    var game = new Game()
-    renderer.transitionTo(TuiView.Splash, Vector(centeredObject(logo)))
+    renderer.transitionTo(TuiView.Splash, buildCanvas(Vector(centeredObject(logo))))
     Thread.sleep(2500)
 
     while (!shouldClose) {
+      val game = controller.getGame
       val (view, renderObjs) = renderObjsForState(game)
-      renderer.transitionTo(view, renderObjs)
+      renderer.transitionTo(view, buildCanvas(renderObjs))
 
       reader.read() match {
+        // exit if exit is requested
         case 'q' => shouldClose = true
 
         // Enter key
-        case 13 => game = handleEnter(game)
+        case 13 => controller.setGame(handleEnter(game))
 
         // +
-        case 43 => game = handlePlus(game)
+        case 43 =>
+          handlePlus(game)
+          controller.join(Player(UUID.randomUUID(), ""))
 
         // -
         case 45 => handleMinus(game)
 
         // Escape key
         case 27 =>
-          if game.state == Playing then game = handleEscape(game)
+          if controller.getGameState == Playing then controller.setGame(handleEscape(game))
           else reader.read() match {
             // aux key code '['
             case 91 =>
@@ -83,8 +87,8 @@ case class TuiReisen() {
                 // Right key
                 case 67 =>
 
-                // Down key
-                case 68 =>
+                // Left key
+                case 68 => print("left")
 
                 case _ =>
               }
@@ -96,9 +100,12 @@ case class TuiReisen() {
       Thread.sleep(100)
     }
 
-    // cleanup
     renderer.clear()
     renderer.close()
+  }
+
+  override def onEvent(event: GameEvent): Unit = {
+    println(s"received event ${event.toString}")
   }
 
   // This is the start round/continue to next person handler
@@ -112,12 +119,10 @@ case class TuiReisen() {
   // Add player
   private[tui] def handlePlus(game: Game): Game = {
     game.state match {
-      case WaitingForPlayers =>
-        game.join(UUID.randomUUID()) // TODO
-
       case Playing =>
         renderScale = math.min(3, renderScale + 1)
         game
+      case _ => game
     }
   }
 
@@ -231,7 +236,14 @@ case class TuiReisen() {
   private[tui] def activeCards(game: Game): Vector[Card] =
     if game.playedCards.nonEmpty then game.playedCards else fallbackActiveCards
 
+  private[tui] def buildCanvas(renderObjs: Seq[RenderObj]): Vector[String] = {
+    ConsoleCanvas.renderFrame(terminal.getWidth, terminal.getHeight, renderObjs)
+  }
+
   private[tui] def currentRenderScale: Int = renderScale
+
   private[tui] def setRenderScale(scale: Int): Unit = renderScale = scale
+
   private[tui] def closeForTest(): Unit = renderer.close()
+
 }

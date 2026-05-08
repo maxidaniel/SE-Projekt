@@ -11,9 +11,8 @@ case class Game(playerHands: Map[UUID, Vector[Card]], playedCards: Vector[Card],
 
   def join(playerId: UUID): Game = {
     // Only allow players to join outside of a running game
-    if state != WaitingForPlayers then return this
-
-    this.copy(playerHands = playerHands + (playerId -> Vector()))
+    if state != WaitingForPlayers then this
+    else this.copy(playerHands = playerHands + (playerId -> Vector()))
   }
 
   def leave(playerId: UUID): Game = {
@@ -27,6 +26,14 @@ case class Game(playerHands: Map[UUID, Vector[Card]], playedCards: Vector[Card],
     // only start the game if we have 2 or more players
     if playerHands.size < 2 then return this
     this.copy(state = Playing)
+  }
+
+  def deal(): Game = {
+    this
+  }
+
+  def playCard(): Game = {
+    this
   }
 }
 

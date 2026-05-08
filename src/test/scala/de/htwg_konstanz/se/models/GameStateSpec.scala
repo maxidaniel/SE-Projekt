@@ -9,6 +9,10 @@ class GameStateSpec extends AnyWordSpec {
       GameState.values should contain(GameState.WaitingForPlayers)
     }
 
+    "expose playing as a valid state" in {
+      GameState.values should contain(GameState.Playing)
+    }
+
     "default to waiting-for-players in new games" in {
       new Game().state should be(GameState.WaitingForPlayers)
     }

@@ -39,6 +39,32 @@ class GameSpec extends AnyWordSpec {
       val afterJoin = game.join(playerId)
       afterJoin.playerHands.keySet should not contain playerId
     }
+
+    "start when waiting and at least two players exist" in {
+      val p1 = UUID.randomUUID()
+      val p2 = UUID.randomUUID()
+      val game = Game(Map(p1 -> Vector.empty, p2 -> Vector.empty), Vector.empty, GameState.WaitingForPlayers)
+
+      game.start().state should be(Playing)
+    }
+
+    "not start when fewer than two players exist" in {
+      val p1 = UUID.randomUUID()
+      val game = Game(Map(p1 -> Vector.empty), Vector.empty, GameState.WaitingForPlayers)
+
+      game.start().state should be(GameState.WaitingForPlayers)
+    }
+
+    "not start when game is not in waiting state" in {
+      val game = Game(Map.empty, Vector.empty, Playing)
+      game.start() should be(game)
+    }
+
+    "return itself for deal and playCard placeholders" in {
+      val game = new Game()
+      game.deal() should be(game)
+      game.playCard() should be(game)
+    }
   }
 
   "A deck" should {

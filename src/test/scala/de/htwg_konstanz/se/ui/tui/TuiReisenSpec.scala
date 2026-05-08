@@ -1,16 +1,18 @@
 package de.htwg_konstanz.se.ui.tui
 
+import de.htwg_konstanz.se.controller.GameController
 import de.htwg_konstanz.se.models.Card.{AceOfSpades, TenOfSpades}
 import de.htwg_konstanz.se.models.Game
 import de.htwg_konstanz.se.models.GameState.{Playing, WaitingForPlayers}
 import org.scalatest.matchers.should.Matchers._
 import org.scalatest.wordspec.AnyWordSpec
 
+import java.lang.reflect.Field
 import java.util.UUID
 
 class TuiReisenSpec extends AnyWordSpec {
   private def withTui[A](f: TuiReisen => A): A = {
-    val tui = TuiReisen()
+    val tui = TuiReisen(new GameController())
     try f(tui)
     finally tui.closeForTest()
   }
@@ -35,10 +37,10 @@ class TuiReisenSpec extends AnyWordSpec {
   }
 
   "TuiReisen.handlePlus" should {
-    "add a player in waiting state" in withTui { tui =>
+    "leave game unchanged in waiting state" in withTui { tui =>
       val game = new Game()
       val updated = tui.handlePlus(game)
-      updated.playerHands.size should be(1)
+      updated should be(game)
       updated.state should be(WaitingForPlayers)
     }
 
@@ -48,6 +50,13 @@ class TuiReisenSpec extends AnyWordSpec {
       tui.handlePlus(game)
       tui.currentRenderScale should be(2)
       tui.handlePlus(game)
+      tui.handlePlus(game)
+      tui.currentRenderScale should be(3)
+    }
+
+    "not increase render scale above 3 in playing state" in withTui { tui =>
+      val game = Game(Map.empty, Vector.empty, Playing)
+      tui.setRenderScale(3)
       tui.handlePlus(game)
       tui.currentRenderScale should be(3)
     }
@@ -167,6 +176,33 @@ class TuiReisenSpec extends AnyWordSpec {
       lines.exists(_.contains("Scale: 3")) should be(true)
       lines should contain("Players")
       lines.exists(_.startsWith("┌")) should be(true)
+    }
+  }
+
+  "TuiReisen.buildCanvas" should {
+    "return full-terminal sized lines and include rendered content" in withTui { tui =>
+      val lines = tui.buildCanvas(Vector(RenderObj(0, 0, Vector("HELLO"))))
+      lines.length should be >= 1
+      lines.head.length should be >= 1
+      lines.head.startsWith("HELLO") should be(true)
+      all(lines.map(_.length)) should be(lines.head.length)
+    }
+  }
+
+  "TuiReisen.onEvent" should {
+    "accept events without throwing" in withTui { tui =>
+      noException should be thrownBy tui.onEvent(de.htwg_konstanz.se.models.StartEvent(new Game()))
+    }
+  }
+
+  "TuiReisen.run" should {
+    "exit quickly when close flag is preset" in {
+      val tui = TuiReisen(new GameController())
+      val shouldCloseField: Field = classOf[TuiReisen].getDeclaredField("shouldClose")
+      shouldCloseField.setAccessible(true)
+      shouldCloseField.setBoolean(tui, true)
+
+      noException should be thrownBy tui.run()
     }
   }
 }
