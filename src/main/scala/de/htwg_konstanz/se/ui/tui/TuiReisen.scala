@@ -14,6 +14,7 @@ import java.util.UUID
 case class TuiReisen() {
   private val fallbackActiveCards: Vector[Card] = Vector(TenOfSpades, TenOfSpades, TenOfSpades, TenOfSpades)
 
+  // Source: https://patorjk.com/software/taag/#p=display&f=Cards&t=President&x=none&v=4&h=4&w=80&we=false
   private val logo: Vector[String] =
     """|.------..------..------..------..------..------..------..------..------.
        ||P.--. ||R.--. ||E.--. ||S.--. ||I.--. ||D.--. ||E.--. ||N.--. ||T.--. |
