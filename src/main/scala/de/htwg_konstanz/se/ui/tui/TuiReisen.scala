@@ -103,9 +103,8 @@ case class TuiReisen() {
   // This is the start round/continue to next person handler
   private def handleEnter(game: Game): Game = {
     game.state match {
-      case WaitingForPlayers =>
-        game.copy(state = Playing)
-      case Playing => game
+      case WaitingForPlayers => game.start()
+      case _ => game
     }
   }
 
