@@ -61,7 +61,7 @@ case class TuiReisen(controller: GameController) extends Listener {
         case 'q' => shouldClose = true
 
         // Enter key
-        case 13 => controller.setGame(handleEnter(game))
+        case 13 => controller.start()
 
         // +
         case 43 =>
@@ -73,7 +73,7 @@ case class TuiReisen(controller: GameController) extends Listener {
 
         // Escape key
         case 27 =>
-          if controller.getGameState == Playing then controller.setGame(handleEscape(game))
+          if controller.getGameState == Playing then controller.abort()
           else reader.read() match {
             // aux key code '['
             case 91 =>

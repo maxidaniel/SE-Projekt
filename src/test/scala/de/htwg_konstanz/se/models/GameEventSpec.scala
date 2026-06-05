@@ -15,7 +15,7 @@ class GameEventSpec extends AnyWordSpec {
     "store JoinEvent payload" in {
       val player = Player(UUID.randomUUID(), "P")
       val game = new Game()
-      val event = JoinEvent(player, game)
+      val event = PlayerJoinEvent(player, game)
 
       event.player should be(player)
       event.game should be(game)

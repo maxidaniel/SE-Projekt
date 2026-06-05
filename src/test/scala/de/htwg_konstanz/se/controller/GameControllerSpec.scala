@@ -1,7 +1,7 @@
 package de.htwg_konstanz.se.controller
 
 import de.htwg_konstanz.se.models.GameState.{Playing, WaitingForPlayers}
-import de.htwg_konstanz.se.models.{Game, JoinEvent, Player, StartEvent}
+import de.htwg_konstanz.se.models.{Game, PlayerJoinEvent, Player, StartEvent}
 import de.htwg_konstanz.se.util.Listener
 import org.scalatest.matchers.should.Matchers.*
 import org.scalatest.wordspec.AnyWordSpec
@@ -19,12 +19,12 @@ class GameControllerSpec extends AnyWordSpec {
     "join a player and emit a JoinEvent" in {
       val controller = new GameController()
       val player = Player(UUID.fromString("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"), "Alice")
-      var observed: Option[JoinEvent] = None
+      var observed: Option[PlayerJoinEvent] = None
 
       controller.add(new Listener {
         override def onEvent(event: de.htwg_konstanz.se.models.GameEvent): Unit =
           event match
-            case e: JoinEvent => observed = Some(e)
+            case e: PlayerJoinEvent => observed = Some(e)
             case _ =>
       })
 
