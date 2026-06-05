@@ -111,7 +111,7 @@ case class TuiReisen(controller: GameController) extends Listener {
   // This is the start round/continue to next person handler
   private[tui] def handleEnter(game: Game): Game = {
     game.state match {
-      case WaitingForPlayers => game.start()
+      case WaitingForPlayers => game.start().get // TODO: temp
       case _ => game
     }
   }

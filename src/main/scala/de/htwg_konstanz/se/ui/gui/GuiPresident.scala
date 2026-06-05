@@ -52,17 +52,19 @@ case class GuiPresident(controller: GameController) extends Listener, JFXApp3 {
           statusMessage = s"${displayName(winner.id)} wins the game."
           currentView = View.Result
 
-        case GameStateChangedEvent(state, game) =>
-          statusMessage = state match {
-            case GameState.WaitingForPlayers => "Waiting for players."
-            case GameState.Starting =>
-              if game.state == GameState.Playing then "The game has started."
-              else "At least two players are required to start."
-            case GameState.Playing => "The game is running."
-            case GameState.Aborting => "Aborting the current game."
-            case GameState.Ending => "The game is ending."
-          }
-          currentView = viewForGame(game, fallbackState = Some(state))
+        case GameErrorEvent(cause, error) =>
+
+//        case (state, game) =>
+//          statusMessage = state match {
+//            case GameState.WaitingForPlayers => "Waiting for players."
+//            case GameState.Starting =>
+//              if game.state == GameState.Playing then "The game has started."
+//              else "At least two players are required to start."
+//            case GameState.Playing => "The game is running."
+//            case GameState.Aborting => "Aborting the current game."
+//            case GameState.Ending => "The game is ending."
+//          }
+//          currentView = viewForGame(game, fallbackState = Some(state))
       }
 
       refreshView()
@@ -359,12 +361,12 @@ case class GuiPresident(controller: GameController) extends Listener, JFXApp3 {
 
   private def viewForGame(game: Game, fallbackState: Option[GameState] = None): View = {
     fallbackState match {
-      case Some(GameState.Aborting | GameState.Ending) => View.Result
+      case Some(GameState.Aborted | GameState.Ended) => View.Result
       case _ =>
         game.state match {
           case GameState.WaitingForPlayers => View.Lobby
           case GameState.Starting | GameState.Playing => View.Game
-          case GameState.Aborting | GameState.Ending => View.Result
+          case GameState.Aborted | GameState.Ended => View.Result
         }
     }
   }
