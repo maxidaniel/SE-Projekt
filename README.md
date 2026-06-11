@@ -1,5 +1,5 @@
 ## President card game implemented in a Scala project.
-[![Scala CI](https://github.com/maxidaniel/SE-Projekt/actions/workflows/build.yml/badge.svg)](https://github.com/maxidaniel/SE-Projekt/actions/workflows/build.yml)
+[![Scala CI](https://github.com/maxidaniel/SE-Projekt/actions/workflows/build.yml/badge.svg)](https://github.com/maxidaniel/SE-Projekt/actions/workflows/build.yml) [![Coverage Status](https://coveralls.io/repos/github/maxidaniel/SE-Projekt/badge.svg?branch=main)](https://coveralls.io/github/maxidaniel/SE-Projekt?branch=main)
 
 ### Usage
 
