@@ -191,7 +191,7 @@ class TuiReisenSpec extends AnyWordSpec {
 
   "TuiReisen.onEvent" should {
     "accept events without throwing" in withTui { tui =>
-      noException should be thrownBy tui.onEvent(de.htwg_konstanz.se.models.StartEvent(new Game()))
+      noException should be thrownBy tui.onEvent(de.htwg_konstanz.se.models.GameStartedEvent(new Game()))
     }
   }
 

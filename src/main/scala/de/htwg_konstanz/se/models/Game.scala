@@ -12,14 +12,14 @@ case class Game(playerHands: Map[UUID, Vector[Card]], playedCards: Vector[Card],
 
   def join(playerId: UUID): Try[Game] = {
     // Only allow players to join outside of a running game
-    if state != WaitingForPlayers then Failure(Exception("Player already joined."))
+    if state != WaitingForPlayers then Failure(Exception("Cannot join a running game."))
     else if playerHands.contains(playerId) then Failure(Exception(s"The player with id $playerId is already part of the game."))
     else Success(this.copy(playerHands = playerHands + (playerId -> Vector())))
   }
 
   def leave(playerId: UUID): Try[Game] = {
     // TODO: handle cards returning to deck if quit during play is allowed
-    if state != WaitingForPlayers then Failure(Exception("Can only exit when not playing."))
+    if state != WaitingForPlayers then Failure(Exception("Cannot quit a running game."))
     else if !playerHands.contains(playerId) then Failure(Exception(s"The player with id $playerId is not part of the game."))
     else Success(this.copy(playerHands = playerHands - playerId))
   }

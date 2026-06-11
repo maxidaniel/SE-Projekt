@@ -9,6 +9,7 @@ import org.jline.terminal.Terminal.*
 import org.jline.terminal.{Terminal, TerminalBuilder}
 
 import java.util.UUID
+import scala.util.{Success, Failure}
 
 // This class is going to be updated by a service in the future. Refactor it in such a way, that we call Service.register(Tui),
 // which establishes event handling in the tui, and then call Service.run(), which then handles all game state.
@@ -111,7 +112,12 @@ case class TuiReisen(controller: GameController) extends Listener {
   // This is the start round/continue to next person handler
   private[tui] def handleEnter(game: Game): Game = {
     game.state match {
-      case WaitingForPlayers => game.start().get // TODO: temp
+      case WaitingForPlayers => game.start() match {
+        case Success(g) => g
+        case Failure(e) => 
+          println(e.getMessage)
+          game
+      }
       case _ => game
     }
   }

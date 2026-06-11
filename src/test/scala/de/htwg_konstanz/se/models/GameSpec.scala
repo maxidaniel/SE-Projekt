@@ -2,8 +2,10 @@ package de.htwg_konstanz.se.models
 
 import de.htwg_konstanz.se.models.GameState.Playing
 import org.scalatest.matchers.should.Matchers.*
+import org.scalatest.TryValues._
 import org.scalatest.wordspec.AnyWordSpec
 
+import scala.util.{Failure, Success}
 import java.util.UUID
 
 class GameSpec extends AnyWordSpec {
@@ -19,16 +21,24 @@ class GameSpec extends AnyWordSpec {
       val game = new Game()
       val playerId = UUID.randomUUID()
 
-      val joined = game.join(playerId)
+      val result = game.join(playerId)
+      result.isSuccess should be(true)
+      result.isFailure should be(false)
+
+      val joined = result.get
       joined.playerHands.keySet should contain(playerId)
       joined.playerHands(playerId) should be(Vector.empty)
     }
 
     "remove a player on leave" in {
       val playerId = UUID.randomUUID()
-      val game = new Game().join(playerId)
+      val game = new Game().join(playerId).get
 
-      val afterLeave = game.leave(playerId)
+      val result = game.leave(playerId)
+      result.isSuccess should be(true)
+      result.isFailure should be(false)
+
+      val afterLeave = result.get
       afterLeave.playerHands.keySet should not contain playerId
     }
 
@@ -36,8 +46,12 @@ class GameSpec extends AnyWordSpec {
       val game = new Game().copy(state = Playing)
       val playerId = UUID.randomUUID()
 
-      val afterJoin = game.join(playerId)
-      afterJoin.playerHands.keySet should not contain playerId
+      val result = game.join(playerId)
+      result.isSuccess should be(false)
+      result.isFailure should be(true)
+
+      val throwable = result.failed.get
+      throwable.getMessage should be("Cannot join a running game.")
     }
 
     "start when waiting and at least two players exist" in {
@@ -45,19 +59,23 @@ class GameSpec extends AnyWordSpec {
       val p2 = UUID.randomUUID()
       val game = Game(Map(p1 -> Vector.empty, p2 -> Vector.empty), Vector.empty, GameState.WaitingForPlayers)
 
-      game.start().state should be(Playing)
+      game.start().get.state should be(Playing)
     }
 
     "not start when fewer than two players exist" in {
       val p1 = UUID.randomUUID()
       val game = Game(Map(p1 -> Vector.empty), Vector.empty, GameState.WaitingForPlayers)
 
-      game.start().state should be(GameState.WaitingForPlayers)
+      val result = game.start()
+      result match {
+        case Success(g) => g.state should not be(Playing)
+        case Failure(e) => e.getMessage should be("Can only start a new game with two or more players.")
+      }
     }
 
     "not start when game is not in waiting state" in {
       val game = Game(Map.empty, Vector.empty, Playing)
-      game.start() should be(game)
+      game.start().isFailure shouldBe true
     }
 
     "return itself for deal and playCard placeholders" in {

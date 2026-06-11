@@ -23,7 +23,7 @@ class GameEventSpec extends AnyWordSpec {
 
     "store StartEvent payload" in {
       val game = new Game()
-      val event = StartEvent(game)
+      val event = GameStartedEvent(game)
 
       event.game should be(game)
     }

@@ -1,7 +1,7 @@
 package de.htwg_konstanz.se.controller
 
 import de.htwg_konstanz.se.models.GameState.{Playing, WaitingForPlayers}
-import de.htwg_konstanz.se.models.{Game, PlayerJoinEvent, Player, StartEvent}
+import de.htwg_konstanz.se.models.*
 import de.htwg_konstanz.se.util.Listener
 import org.scalatest.matchers.should.Matchers.*
 import org.scalatest.wordspec.AnyWordSpec
@@ -21,12 +21,10 @@ class GameControllerSpec extends AnyWordSpec {
       val player = Player(UUID.fromString("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"), "Alice")
       var observed: Option[PlayerJoinEvent] = None
 
-      controller.add(new Listener {
-        override def onEvent(event: de.htwg_konstanz.se.models.GameEvent): Unit =
-          event match
-            case e: PlayerJoinEvent => observed = Some(e)
-            case _ =>
-      })
+      controller.add {
+        case e: PlayerJoinEvent => observed = Some(e)
+        case _ =>
+      }
 
       controller.join(player)
 
@@ -39,16 +37,13 @@ class GameControllerSpec extends AnyWordSpec {
       val p1 = UUID.fromString("11111111-1111-1111-1111-111111111111")
       val p2 = UUID.fromString("22222222-2222-2222-2222-222222222222")
       val game = Game(Map(p1 -> Vector.empty, p2 -> Vector.empty), Vector.empty, WaitingForPlayers)
-      val controller = new GameController()
-      controller.setGame(game)
-      var observed: Option[StartEvent] = None
+      val controller = GameController(game, Seq.empty)
+      var observed: Option[GameStartedEvent] = None
 
-      controller.add(new Listener {
-        override def onEvent(event: de.htwg_konstanz.se.models.GameEvent): Unit =
-          event match
-            case e: StartEvent => observed = Some(e)
-            case _ =>
-      })
+      controller.add {
+        case e: GameStartedEvent => observed = Some(e)
+        case _ =>
+      }
 
       controller.start()
 
@@ -57,10 +52,8 @@ class GameControllerSpec extends AnyWordSpec {
     }
 
     "set and expose game instance" in {
-      val controller = new GameController()
       val customGame = Game(Map.empty, Vector.empty, Playing)
-
-      controller.setGame(customGame)
+      val controller = new GameController(customGame, Seq.empty)
 
       controller.getGame should be(customGame)
       controller.getGameState should be(Playing)
