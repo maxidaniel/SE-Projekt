@@ -14,64 +14,20 @@ import scalafx.scene.layout.{BorderPane, FlowPane, HBox, StackPane, VBox}
 import java.util.UUID
 
 case class GuiPresident(controller: GameController) extends Listener, JFXApp3 {
-  private enum View {
-    case Menu, Lobby, Game, Result
-  }
-
-  private var currentView: View = View.Menu
-  private var knownPlayers: Map[UUID, String] = Map.empty
-  private var statusMessage: String = "Welcome to President. Create a lobby to begin."
-  private var resultTitle: String = "Game finished"
+  private val viewModel = new PresidentViewModel(controller)
   private var listenerRegistered: Boolean = false
 
   override def onEvent(event: GameEvent): Unit = {
-    runOnFxThread {
-      event match {
-        case PlayerJoinEvent(player, game) =>
-          rememberPlayer(player)
-          statusMessage = s"${displayName(player.id)} joined the lobby."
-          currentView = if game.state == GameState.Playing then View.Game else View.Lobby
-
-        case PlayerQuitEvent(player, game) =>
-          statusMessage = s"${displayName(player.id)} left the game."
-          knownPlayers = knownPlayers - player.id
-          currentView = if game.state == GameState.Playing then View.Game else View.Lobby
-
-        case GameStartedEvent(game) =>
-          statusMessage = "The game has started."
-          currentView = View.Game
-
-        case GameAbortedEvent(game) =>
-          resultTitle = "Game aborted"
-          statusMessage = "The current game was aborted."
-          currentView = View.Result
-
-        case GameEndedEvent(game, winner) =>
-          rememberPlayer(winner)
-          resultTitle = "Game finished"
-          statusMessage = s"${displayName(winner.id)} wins the game."
-          currentView = View.Result
-
-        case GameErrorEvent(cause, error) =>
-
-//        case (state, game) =>
-//          statusMessage = state match {
-//            case GameState.WaitingForPlayers => "Waiting for players."
-//            case GameState.Starting =>
-//              if game.state == GameState.Playing then "The game has started."
-//              else "At least two players are required to start."
-//            case GameState.Playing => "The game is running."
-//            case GameState.Aborting => "Aborting the current game."
-//            case GameState.Ending => "The game is ending."
-//          }
-//          currentView = viewForGame(game, fallbackState = Some(state))
+    event match {
+      case GameExitEvent => Platform.exit()
+      case _ => runOnFxThread {
+        viewModel.handleEvent(event)
+        refreshView()
       }
-
-      refreshView()
     }
   }
 
-  def menuView(): Parent = new VBox {
+  private def menuView(): Parent = new VBox {
     spacing = 18
     padding = Insets(32)
     alignment = Pos.Center
@@ -91,10 +47,10 @@ case class GuiPresident(controller: GameController) extends Listener, JFXApp3 {
             onAction = eventHandler(navigateTo(View.Lobby))
           },
           new Button("Show Current Game") {
-            onAction = eventHandler(navigateTo(viewForGame(controller.getGame)))
+            onAction = eventHandler(navigateTo(viewModel.viewForGame(controller.getGame)))
           },
           new Button("Quit") {
-            onAction = eventHandler(Platform.exit())
+            onAction = eventHandler(controller.exit())
           }
         )
       },
@@ -102,7 +58,7 @@ case class GuiPresident(controller: GameController) extends Listener, JFXApp3 {
     )
   }
 
-  def lobbyView(): Parent = {
+  private def lobbyView(): Parent = {
     val game = controller.getGame
     val nameInput = new TextField {
       promptText = "Player name"
@@ -111,10 +67,10 @@ case class GuiPresident(controller: GameController) extends Listener, JFXApp3 {
 
     def addPlayerFromInput(): Unit = {
       val name = nameInput.text.value.trim
-      if name.isEmpty then statusMessage = "Enter a player name before joining."
+      if name.isEmpty then viewModel.statusMessage = "Enter a player name before joining."
       else {
         val player = Player(UUID.randomUUID(), name)
-        rememberPlayer(player)
+        viewModel.rememberPlayer(player)
         controller.join(player)
         nameInput.text = ""
       }
@@ -140,7 +96,7 @@ case class GuiPresident(controller: GameController) extends Listener, JFXApp3 {
               disable = game.playerHands.size < 2
               onAction = eventHandler {
                 if controller.getGame.playerHands.size < 2 then {
-                  statusMessage = "At least two players are required to start."
+                  viewModel.statusMessage = "At least two players are required to start."
                   refreshView()
                 } else controller.start()
               }
@@ -152,6 +108,12 @@ case class GuiPresident(controller: GameController) extends Listener, JFXApp3 {
         playerList(game, allowRemove = true)
       ),
       actions = Seq(
+        new Button("Undo") {
+          onAction = eventHandler(controller.undo())
+        },
+        new Button("Redo") {
+          onAction = eventHandler(controller.redo())
+        },
         new Button("Back to Menu") {
           onAction = eventHandler(navigateTo(View.Menu))
         }
@@ -159,7 +121,7 @@ case class GuiPresident(controller: GameController) extends Listener, JFXApp3 {
     )
   }
 
-  def gameView(): Parent = {
+  private def gameView(): Parent = {
     val game = controller.getGame
 
     new StackPane {
@@ -178,6 +140,12 @@ case class GuiPresident(controller: GameController) extends Listener, JFXApp3 {
             }
           ),
           actions = Seq(
+            new Button("Undo") {
+              onAction = eventHandler(controller.undo())
+            },
+            new Button("Redo") {
+              onAction = eventHandler(controller.redo())
+            },
             new Button("Abort Game") {
               disable = game.state != GameState.Playing
               onAction = eventHandler(controller.abort())
@@ -195,7 +163,7 @@ case class GuiPresident(controller: GameController) extends Listener, JFXApp3 {
   }
 
   def resultView(): Parent = page(
-    header = resultTitle,
+    header = viewModel.resultTitle,
     bodyContent = Seq(
       statusLabel(),
       new Separator(),
@@ -240,7 +208,7 @@ case class GuiPresident(controller: GameController) extends Listener, JFXApp3 {
     style = "-fx-font-size: 28px; -fx-font-weight: bold;"
   }
 
-  private def statusLabel(): Label = new Label(statusMessage) {
+  private def statusLabel(): Label = new Label(viewModel.statusMessage) {
     wrapText = true
     style = "-fx-padding: 10; -fx-background-color: #f3f5f8; -fx-background-radius: 6;"
   }
@@ -278,7 +246,7 @@ case class GuiPresident(controller: GameController) extends Listener, JFXApp3 {
           spacing = 10
           alignment = Pos.CenterLeft
           children = Seq(
-            new Label(displayName(playerId)) {
+            new Label(viewModel.displayName(playerId)) {
               minWidth = 160
               style = "-fx-font-weight: bold;"
             },
@@ -288,7 +256,7 @@ case class GuiPresident(controller: GameController) extends Listener, JFXApp3 {
             }
           ) ++
             (if allowRemove then Seq(new Button("Remove") {
-              onAction = eventHandler(controller.quit(Player(playerId, displayName(playerId))))
+              onAction = eventHandler(controller.quit(Player(playerId, viewModel.displayName(playerId))))
             }) else Seq.empty)
         }
       }
@@ -302,7 +270,7 @@ case class GuiPresident(controller: GameController) extends Listener, JFXApp3 {
         new VBox {
           spacing = 6
           children = Seq(
-            new Label(displayName(playerId)) {
+            new Label(viewModel.displayName(playerId)) {
               style = "-fx-font-weight: bold;"
             },
             cardFlow(cards)
@@ -340,12 +308,12 @@ case class GuiPresident(controller: GameController) extends Listener, JFXApp3 {
   }
 
   private def navigateTo(view: View): Unit = {
-    currentView = view
+    viewModel.currentView = view
     refreshView()
   }
 
   private def refreshView(): Unit = {
-    val view = currentView match {
+    val view = viewModel.currentView match {
       case View.Menu => menuView()
       case View.Lobby => lobbyView()
       case View.Game => gameView()
@@ -359,25 +327,6 @@ case class GuiPresident(controller: GameController) extends Listener, JFXApp3 {
     stage.scene.value.setRoot(view.delegate)
   }
 
-  private def viewForGame(game: Game, fallbackState: Option[GameState] = None): View = {
-    fallbackState match {
-      case Some(GameState.Aborted | GameState.Ended) => View.Result
-      case _ =>
-        game.state match {
-          case GameState.WaitingForPlayers => View.Lobby
-          case GameState.Starting | GameState.Playing => View.Game
-          case GameState.Aborted | GameState.Ended => View.Result
-        }
-    }
-  }
-
-  private def rememberPlayer(player: Player): Unit = {
-    knownPlayers = knownPlayers + (player.id -> player.name)
-  }
-
-  private def displayName(playerId: UUID): String = {
-    knownPlayers.get(playerId).filter(_.nonEmpty).getOrElse(s"Player ${playerId.toString.take(8)}")
-  }
 
   private def eventHandler(handler: => Unit): EventHandler[ActionEvent] = (_: ActionEvent) => handler
 

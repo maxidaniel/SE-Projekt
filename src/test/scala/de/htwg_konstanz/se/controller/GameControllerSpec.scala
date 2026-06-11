@@ -1,6 +1,6 @@
 package de.htwg_konstanz.se.controller
 
-import de.htwg_konstanz.se.models.GameState.{Playing, WaitingForPlayers}
+import de.htwg_konstanz.se.models.GameState.{Aborted, Playing, WaitingForPlayers}
 import de.htwg_konstanz.se.models.*
 import de.htwg_konstanz.se.util.Listener
 import org.scalatest.matchers.should.Matchers.*
@@ -57,6 +57,84 @@ class GameControllerSpec extends AnyWordSpec {
 
       controller.getGame should be(customGame)
       controller.getGameState should be(Playing)
+    }
+
+    "not join a player when game is running and emit GameErrorEvent" in {
+      val controller = new GameController(Game(Map.empty, Vector.empty, Playing), Seq.empty)
+      val player = Player(UUID.randomUUID(), "Alice")
+      var observed: Option[GameErrorEvent] = None
+      controller.add {
+        case e: GameErrorEvent => observed = Some(e)
+        case _ =>
+      }
+      controller.join(player)
+      observed.isDefined should be(true)
+    }
+
+    "quit a player and emit a QuitEvent" in {
+      val p1 = UUID.randomUUID()
+      val controller = new GameController(Game(Map(p1 -> Vector.empty), Vector.empty, WaitingForPlayers), Seq.empty)
+      val player = Player(p1, "Alice")
+      var observed: Option[PlayerQuitEvent] = None
+      controller.add {
+        case e: PlayerQuitEvent => observed = Some(e)
+        case _ =>
+      }
+      controller.quit(player)
+      controller.getGame.playerHands.keySet should not contain p1
+      observed.map(_.player) should be(Some(player))
+    }
+
+    "not quit a player that is not part of the game and emit GameErrorEvent" in {
+      val controller = new GameController()
+      val player = Player(UUID.randomUUID(), "Alice")
+      var observed: Option[GameErrorEvent] = None
+      controller.add {
+        case e: GameErrorEvent => observed = Some(e)
+        case _ =>
+      }
+      controller.quit(player)
+      observed.isDefined should be(true)
+    }
+
+    "abort a game and emit a GameAbortedEvent" in {
+      val controller = new GameController(Game(Map.empty, Vector.empty, Playing), Seq.empty)
+      var observed: Option[GameAbortedEvent] = None
+      controller.add {
+        case e: GameAbortedEvent => observed = Some(e)
+        case _ =>
+      }
+      controller.abort()
+      controller.getGameState should be(Aborted)
+      observed.isDefined should be(true)
+    }
+
+    "not abort a game when not playing" in {
+      val controller = new GameController()
+      controller.abort()
+      controller.getGameState should not be (Aborted)
+    }
+
+    "not start a game when fewer than 2 players and emit GameErrorEvent" in {
+      val controller = new GameController(Game(Map.empty, Vector.empty, WaitingForPlayers), Seq.empty)
+      var observed: Option[GameErrorEvent] = None
+      controller.add {
+        case e: GameErrorEvent => observed = Some(e)
+        case _ =>
+      }
+      controller.start()
+      observed.isDefined should be(true)
+    }
+
+    "emit GameExitEvent when exit is called" in {
+      val controller = new GameController()
+      var observed: Boolean = false
+      controller.add {
+        case GameExitEvent => observed = true
+        case _ =>
+      }
+      controller.exit()
+      observed should be(true)
     }
   }
 }

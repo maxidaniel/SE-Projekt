@@ -1,64 +1,159 @@
 package de.htwg_konstanz.se.controller
 
 import de.htwg_konstanz.se.models.*
-import de.htwg_konstanz.se.models.GameState.Starting
-import de.htwg_konstanz.se.util.Provider
+import de.htwg_konstanz.se.util.{Command, Provider, UndoManager}
 
-import scala.util.{Failure, Success, Try}
+import scala.util.{Failure, Success}
 
 class GameController(private var game: Game, private var players: Seq[Player]) extends Provider {
+  private var undoManager = UndoManager()
+
   def this() = {
     this(new Game(), Seq.empty)
   }
 
-  def join(player: Player): Unit = {
-    val result = game.join(player.id)
-    result match {
-      case Success(g) =>
-        game = g
-        notifyEvent(PlayerJoinEvent(player, game))
-      case Failure(f) => 
-        println(s"Join failed: ${f.getMessage}")
-        notifyEvent(GameErrorEvent(PlayerJoinEvent(player, game), Failure(f)))
+  private class JoinCommand(player: Player) extends Command {
+    private var oldGame: Game = _
+    private var newGame: Game = _
+
+    override def doStep(): Unit = {
+      oldGame = game
+      game.join(player.id) match {
+        case Success(g) =>
+          game = g
+          newGame = g
+          notifyEvent(PlayerJoinEvent(player, game))
+        case Failure(f) =>
+          notifyEvent(GameErrorEvent(PlayerJoinEvent(player, game), Failure(f)))
+      }
     }
+
+    override def undoStep(): Unit = {
+      game = oldGame
+      notifyEvent(GameChangedEvent(game))
+    }
+
+    override def redoStep(): Unit = {
+      game = newGame
+      notifyEvent(PlayerJoinEvent(player, game))
+    }
+  }
+
+  private class QuitCommand(player: Player) extends Command {
+    private var oldGame: Game = _
+    private var newGame: Game = _
+
+    override def doStep(): Unit = {
+      oldGame = game
+      game.quit(player.id) match {
+        case Success(g) =>
+          game = g
+          newGame = g
+          notifyEvent(PlayerQuitEvent(player, game))
+        case Failure(f) =>
+          notifyEvent(GameErrorEvent(PlayerQuitEvent(player, game), Failure(f)))
+      }
+    }
+
+    override def undoStep(): Unit = {
+      game = oldGame
+      notifyEvent(GameChangedEvent(game))
+    }
+
+    override def redoStep(): Unit = {
+      game = newGame
+      notifyEvent(PlayerQuitEvent(player, game))
+    }
+  }
+
+  private class StartCommand() extends Command {
+    private var oldGame: Game = _
+    private var newGame: Game = _
+
+    override def doStep(): Unit = {
+      oldGame = game
+      game.start() match {
+        case Success(g) =>
+          game = g
+          newGame = g
+          notifyEvent(GameStartedEvent(game))
+        case Failure(f) =>
+          notifyEvent(GameErrorEvent(GameStartedEvent(game), Failure(f)))
+      }
+    }
+
+    override def undoStep(): Unit = {
+      game = oldGame
+      notifyEvent(GameChangedEvent(game))
+    }
+
+    override def redoStep(): Unit = {
+      game = newGame
+      notifyEvent(GameStartedEvent(game))
+    }
+  }
+
+  private class PlayCardCommand(player: Player, card: Card) extends Command {
+    private var oldGame: Game = _
+    private var newGame: Game = _
+
+    override def doStep(): Unit = {
+      oldGame = game
+      game.playCard(player.id, card) match {
+        case Success(g) =>
+          game = g
+          newGame = g
+          notifyEvent(CardPlayedEvent(player, card, game))
+        case Failure(f) =>
+          notifyEvent(GameErrorEvent(CardPlayedEvent(player, card, game), Failure(f)))
+      }
+    }
+
+    override def undoStep(): Unit = {
+      game = oldGame
+      notifyEvent(GameChangedEvent(game))
+    }
+
+    override def redoStep(): Unit = {
+      game = newGame
+      notifyEvent(CardPlayedEvent(player, card, game))
+    }
+  }
+
+  def join(player: Player): Unit = {
+    undoManager = undoManager.doStep(new JoinCommand(player))
   }
 
   def quit(player: Player): Unit = {
-    val result = game.leave(player.id)
-    result match {
-      case Success(g) =>
-        game = g
-        notifyEvent(PlayerQuitEvent(player, game))
-      case Failure(f) =>
-        println(s"Quit failed: ${f.getMessage}")
-        notifyEvent(GameErrorEvent(PlayerQuitEvent(player, game), Failure(f)))
-    }
+    undoManager = undoManager.doStep(new QuitCommand(player))
   }
 
   def start(): Unit = {
-    val result = game.start()
-    result match {
-      case Success(g) =>
-        game = g
-        notifyEvent(GameStartedEvent(game))
-      case Failure(f) => 
-        println(s"Start failed: ${f.getMessage}")
-        notifyEvent(GameErrorEvent(GameStartedEvent(game), Failure(f)))
-    }
+    undoManager = undoManager.doStep(new StartCommand())
+  }
+
+  def playCard(player: Player, card: Card): Unit = {
+    undoManager = undoManager.doStep(new PlayCardCommand(player, card))
   }
 
   def abort(): Unit = {
-    val result = game.abort()
-    result match {
+    game.abort() match {
       case Success(g) =>
         game = g
         notifyEvent(GameAbortedEvent(game))
-
       case Failure(f) =>
     }
   }
 
-  def getGame: Game = game
+  def undo(): Unit = {
+    undoManager = undoManager.undoStep()
+  }
+  def redo(): Unit = {
+    undoManager = undoManager.redoStep()
+  }
 
+  def exit(): Unit = notifyEvent(GameExitEvent)
+
+  def getGame: Game = game
   def getGameState: GameState = game.state
 }
