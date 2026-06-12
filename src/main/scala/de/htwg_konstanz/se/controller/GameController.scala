@@ -3,6 +3,7 @@ package de.htwg_konstanz.se.controller
 import de.htwg_konstanz.se.models.*
 import de.htwg_konstanz.se.util.{Command, Provider, UndoManager}
 
+import java.util.UUID
 import scala.compiletime.uninitialized
 import scala.util.{Failure, Success}
 
@@ -13,12 +14,14 @@ class GameController(private var game: Game, private var players: Seq[Player]) e
     this(new Game(), Seq.empty)
   }
 
-  def join(player: Player): Unit = {
-    undoManager = undoManager.doStep(new JoinCommand(player))
+  def join(name: String): Unit = {
+    undoManager = undoManager.doStep(new JoinCommand(new Player(name)))
   }
 
-  def quit(player: Player): Unit = {
-    undoManager = undoManager.doStep(new QuitCommand(player))
+  def quit(uuid: UUID): Unit = {
+    val player = players.find(p => p.id == uuid)
+    if player.isEmpty then return
+    undoManager = undoManager.doStep(new QuitCommand(player.get))
   }
 
   def start(): Unit = {
@@ -28,6 +31,10 @@ class GameController(private var game: Game, private var players: Seq[Player]) e
   def playCard(player: Player, card: Card): Unit = {
     undoManager = undoManager.doStep(new PlayCardCommand(player, card))
   }
+
+  def getPlayer(name: String): Option[Player] = players.find(p => p.name == name)
+
+  def getPlayer(uuid: UUID): Option[Player] = players.find(p => p.id == uuid)
 
   def abort(): Unit = {
     game.abort() match {
@@ -41,6 +48,7 @@ class GameController(private var game: Game, private var players: Seq[Player]) e
   def undo(): Unit = {
     undoManager = undoManager.undoStep()
   }
+
   def redo(): Unit = {
     undoManager = undoManager.redoStep()
   }
@@ -152,9 +160,10 @@ class GameController(private var game: Game, private var players: Seq[Player]) e
       notifyEvent(CardPlayedEvent(player, card, game))
     }
   }
-  
+
   def exit(): Unit = notifyEvent(GameExitEvent)
 
   def getGame: Game = game
+
   def getGameState: GameState = game.state
 }

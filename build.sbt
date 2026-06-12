@@ -25,3 +25,5 @@ lazy val root = project
           .map(m => "org.openjfx" % s"javafx-$m" % "21" classifier osName)
     }
   )
+
+// TODO: exclude ui package from coverage, and main

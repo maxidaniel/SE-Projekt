@@ -7,11 +7,9 @@ import javafx.application.Platform
 import javafx.event.{ActionEvent, EventHandler}
 import scalafx.application.JFXApp3
 import scalafx.geometry.{Insets, Pos}
+import scalafx.scene.control.*
+import scalafx.scene.layout.*
 import scalafx.scene.{Parent, Scene}
-import scalafx.scene.control.{Button, Label, ScrollPane, Separator, TextField}
-import scalafx.scene.layout.{BorderPane, FlowPane, HBox, StackPane, VBox}
-
-import java.util.UUID
 
 case class GuiPresident(controller: GameController) extends Listener, JFXApp3 {
   private val viewModel = new PresidentViewModel(controller)
@@ -69,10 +67,12 @@ case class GuiPresident(controller: GameController) extends Listener, JFXApp3 {
       val name = nameInput.text.value.trim
       if name.isEmpty then viewModel.statusMessage = "Enter a player name before joining."
       else {
-        val player = Player(UUID.randomUUID(), name)
-        viewModel.rememberPlayer(player)
-        controller.join(player)
-        nameInput.text = ""
+        controller.join(name)
+        val player = controller.getPlayer(name)
+        if player.isDefined then {
+          viewModel.rememberPlayer(player.get) // This should be fine, 
+          nameInput.text = ""
+        }
       }
 
       refreshView()
@@ -256,7 +256,7 @@ case class GuiPresident(controller: GameController) extends Listener, JFXApp3 {
             }
           ) ++
             (if allowRemove then Seq(new Button("Remove") {
-              onAction = eventHandler(controller.quit(Player(playerId, viewModel.displayName(playerId))))
+              onAction = eventHandler(controller.quit(playerId))
             }) else Seq.empty)
         }
       }

@@ -1,9 +1,8 @@
 package de.htwg_konstanz.se.ui.tui
 
 import de.htwg_konstanz.se.controller.GameController
-import de.htwg_konstanz.se.models.*
-import de.htwg_konstanz.se.models.Card.TenOfSpades
-import de.htwg_konstanz.se.models.GameState.{Aborted, Ended, Playing, WaitingForPlayers}
+import de.htwg_konstanz.se.models.{Card, Game, GameErrorEvent, GameEvent, GameExitEvent, GameStartedEvent, PlayerJoinEvent}
+import de.htwg_konstanz.se.models.GameState.*
 import de.htwg_konstanz.se.util.Listener
 import org.jline.terminal.Terminal.*
 import org.jline.terminal.{Terminal, TerminalBuilder}
@@ -14,7 +13,6 @@ import scala.util.{Failure, Success}
 // This class is going to be updated by a service in the future. Refactor it in such a way, that we call Service.register(Tui),
 // which establishes event handling in the tui, and then call Service.run(), which then handles all game state.
 case class TuiReisen(controller: GameController) extends Listener {
-  private val fallbackActiveCards: Vector[Card] = Vector(TenOfSpades, TenOfSpades, TenOfSpades, TenOfSpades)
 
   // Source: https://patorjk.com/software/taag/#p=display&f=Cards&t=President&x=none&v=4&h=4&w=80&we=false
   private val logo: Vector[String] =
@@ -65,7 +63,7 @@ case class TuiReisen(controller: GameController) extends Listener {
         // +
         case 43 =>
           handlePlus(controller.getGame)
-          controller.join(Player(UUID.randomUUID(), ""))
+          controller.join("")
 
         // -
         case 45 => handleMinus(controller.getGame)
@@ -252,8 +250,7 @@ case class TuiReisen(controller: GameController) extends Listener {
     header ++ rows
   }
 
-  private[tui] def activeCards(game: Game): Vector[Card] =
-    if game.playedCards.nonEmpty then game.playedCards else fallbackActiveCards
+  private[tui] def activeCards(game: Game): Vector[Card] = game.playedCards
 
   private[tui] def buildCanvas(renderObjs: Seq[RenderObj]): Vector[String] = {
     ConsoleCanvas.renderFrame(terminal.getColumns, terminal.getRows, renderObjs)
