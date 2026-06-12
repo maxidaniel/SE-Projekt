@@ -13,6 +13,38 @@ class GameController(private var game: Game, private var players: Seq[Player]) e
     this(new Game(), Seq.empty)
   }
 
+  def join(player: Player): Unit = {
+    undoManager = undoManager.doStep(new JoinCommand(player))
+  }
+
+  def quit(player: Player): Unit = {
+    undoManager = undoManager.doStep(new QuitCommand(player))
+  }
+
+  def start(): Unit = {
+    undoManager = undoManager.doStep(new StartCommand())
+  }
+
+  def playCard(player: Player, card: Card): Unit = {
+    undoManager = undoManager.doStep(new PlayCardCommand(player, card))
+  }
+
+  def abort(): Unit = {
+    game.abort() match {
+      case Success(g) =>
+        game = g
+        notifyEvent(GameAbortedEvent(game))
+      case Failure(f) =>
+    }
+  }
+
+  def undo(): Unit = {
+    undoManager = undoManager.undoStep()
+  }
+  def redo(): Unit = {
+    undoManager = undoManager.redoStep()
+  }
+
   private class JoinCommand(player: Player) extends Command {
     private var oldGame: Game = uninitialized
     private var newGame: Game = uninitialized
@@ -120,39 +152,7 @@ class GameController(private var game: Game, private var players: Seq[Player]) e
       notifyEvent(CardPlayedEvent(player, card, game))
     }
   }
-
-  def join(player: Player): Unit = {
-    undoManager = undoManager.doStep(new JoinCommand(player))
-  }
-
-  def quit(player: Player): Unit = {
-    undoManager = undoManager.doStep(new QuitCommand(player))
-  }
-
-  def start(): Unit = {
-    undoManager = undoManager.doStep(new StartCommand())
-  }
-
-  def playCard(player: Player, card: Card): Unit = {
-    undoManager = undoManager.doStep(new PlayCardCommand(player, card))
-  }
-
-  def abort(): Unit = {
-    game.abort() match {
-      case Success(g) =>
-        game = g
-        notifyEvent(GameAbortedEvent(game))
-      case Failure(f) =>
-    }
-  }
-
-  def undo(): Unit = {
-    undoManager = undoManager.undoStep()
-  }
-  def redo(): Unit = {
-    undoManager = undoManager.redoStep()
-  }
-
+  
   def exit(): Unit = notifyEvent(GameExitEvent)
 
   def getGame: Game = game
