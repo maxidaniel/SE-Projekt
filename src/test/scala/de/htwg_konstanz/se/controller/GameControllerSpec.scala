@@ -4,6 +4,8 @@ import de.htwg_konstanz.se.models.GameState.{Aborted, Playing, WaitingForPlayers
 import de.htwg_konstanz.se.models.*
 import de.htwg_konstanz.se.util.Listener
 import org.scalatest.matchers.should.Matchers.*
+import org.scalatest.TryValues.*
+import org.scalatest.OptionValues.*
 import org.scalatest.wordspec.AnyWordSpec
 
 import java.util.UUID
@@ -69,6 +71,20 @@ class GameControllerSpec extends AnyWordSpec {
       }
       controller.join(player)
       observed.isDefined should be(true)
+    }
+
+    "not play a card and emit GameErrorEvent" in {
+      val controller = new GameController(Game(Map.empty, Vector.empty, WaitingForPlayers), Seq.empty)
+      var observed: Option[GameErrorEvent] = None
+      val player = new Player("Alice")
+      controller.join(player)
+      controller.add {
+        case e: GameErrorEvent => observed = Some(e)
+        case _ =>
+      }
+      controller.playCard(player, Card.TenOfSpades)
+      observed.value.cause should be(CardPlayedEvent(player = player, card = Card.TenOfSpades, game = controller.getGame))
+      observed.value.error.failure.exception should have message "Can only play cards in playing state."
     }
 
     "quit a player and emit a QuitEvent" in {
