@@ -3,6 +3,7 @@ package de.htwg_konstanz.se.controller
 import de.htwg_konstanz.se.models.*
 import de.htwg_konstanz.se.util.{Command, Provider, UndoManager}
 
+import scala.compiletime.uninitialized
 import scala.util.{Failure, Success}
 
 class GameController(private var game: Game, private var players: Seq[Player]) extends Provider {
@@ -13,8 +14,8 @@ class GameController(private var game: Game, private var players: Seq[Player]) e
   }
 
   private class JoinCommand(player: Player) extends Command {
-    private var oldGame: Game = _
-    private var newGame: Game = _
+    private var oldGame: Game = uninitialized
+    private var newGame: Game = uninitialized
 
     override def doStep(): Unit = {
       oldGame = game
@@ -40,8 +41,8 @@ class GameController(private var game: Game, private var players: Seq[Player]) e
   }
 
   private class QuitCommand(player: Player) extends Command {
-    private var oldGame: Game = _
-    private var newGame: Game = _
+    private var oldGame: Game = uninitialized
+    private var newGame: Game = uninitialized
 
     override def doStep(): Unit = {
       oldGame = game
@@ -67,8 +68,8 @@ class GameController(private var game: Game, private var players: Seq[Player]) e
   }
 
   private class StartCommand() extends Command {
-    private var oldGame: Game = _
-    private var newGame: Game = _
+    private var oldGame: Game = uninitialized
+    private var newGame: Game = uninitialized
 
     override def doStep(): Unit = {
       oldGame = game
@@ -94,8 +95,8 @@ class GameController(private var game: Game, private var players: Seq[Player]) e
   }
 
   private class PlayCardCommand(player: Player, card: Card) extends Command {
-    private var oldGame: Game = _
-    private var newGame: Game = _
+    private var oldGame: Game = uninitialized
+    private var newGame: Game = uninitialized
 
     override def doStep(): Unit = {
       oldGame = game

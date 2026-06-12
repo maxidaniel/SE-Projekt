@@ -3,7 +3,7 @@ package de.htwg_konstanz.se.ui.tui
 import de.htwg_konstanz.se.controller.GameController
 import de.htwg_konstanz.se.models.*
 import de.htwg_konstanz.se.models.Card.TenOfSpades
-import de.htwg_konstanz.se.models.GameState.{Aborted, Ended, Playing, Starting, WaitingForPlayers}
+import de.htwg_konstanz.se.models.GameState.{Aborted, Ended, Playing, WaitingForPlayers}
 import de.htwg_konstanz.se.util.Listener
 import org.jline.terminal.Terminal.*
 import org.jline.terminal.{Terminal, TerminalBuilder}
@@ -187,13 +187,13 @@ case class TuiReisen(controller: GameController) extends Listener {
 
         val cardRender = CardRenderer.render(
           cards = active,
-          terminalWidth = terminal.getWidth - 4,
-          terminalHeight = terminal.getHeight - 10,
+          terminalWidth = terminal.getColumns - 4,
+          terminalHeight = terminal.getRows - 10,
           options = CardRendererOptions(userScale = renderScale)
         )
         val cardsWidth = cardRender.lines.map(_.length).maxOption.getOrElse(0)
-        val cardsX = math.max(0, (terminal.getWidth - cardsWidth) / 2)
-        val cardsY = math.max(6, terminal.getHeight - cardRender.lines.length - 1)
+        val cardsX = math.max(0, (terminal.getColumns - cardsWidth) / 2)
+        val cardsY = math.max(6, terminal.getRows - cardRender.lines.length - 1)
 
         (
           TuiView.Playing,
@@ -216,13 +216,13 @@ case class TuiReisen(controller: GameController) extends Listener {
   }
 
   private[tui] def centeredObject(lines: Vector[String]): RenderObj = {
-    val startY = math.max(0, terminal.getHeight / 2 - lines.length / 2)
-    RenderObj.Centered(0, startY, lines, width = Some(terminal.getWidth))
+    val startY = math.max(0, terminal.getRows / 2 - lines.length / 2)
+    RenderObj.Centered(0, startY, lines, width = Some(terminal.getColumns))
   }
 
   private[tui] def playerPanelRenderObjs(game: Game): Vector[RenderObj] = {
-    val panelWidth = math.max(30, math.min(56, terminal.getWidth / 2))
-    val panelX = math.max(0, terminal.getWidth - panelWidth - 2)
+    val panelWidth = math.max(30, math.min(56, terminal.getColumns / 2))
+    val panelX = math.max(0, terminal.getColumns - panelWidth - 2)
     val cardsWidth = math.max(10, panelWidth - 18)
     val namesWidth = panelWidth - cardsWidth - 1
 
@@ -258,7 +258,7 @@ case class TuiReisen(controller: GameController) extends Listener {
     if game.playedCards.nonEmpty then game.playedCards else fallbackActiveCards
 
   private[tui] def buildCanvas(renderObjs: Seq[RenderObj]): Vector[String] = {
-    ConsoleCanvas.renderFrame(terminal.getWidth, terminal.getHeight, renderObjs)
+    ConsoleCanvas.renderFrame(terminal.getColumns, terminal.getRows, renderObjs)
   }
 
   private[tui] def currentRenderScale: Int = renderScale

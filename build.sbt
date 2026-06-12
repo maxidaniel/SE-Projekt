@@ -8,7 +8,7 @@ lazy val root = project
 
     scalaVersion := scala3Version,
 
-    libraryDependencies += "org.jline" % "jline-terminal" % "4.0.12",
+    libraryDependencies += "org.jline" % "jline-terminal" % "4.1.3",
     libraryDependencies += "org.scalactic" %% "scalactic" % "3.2.20",
     libraryDependencies += "org.scalatest" %% "scalatest" % "3.2.20" % "test",
     libraryDependencies += "org.scalafx" %% "scalafx" % "21.0.0-R32",
