@@ -168,7 +168,7 @@ case class TuiReisen(controller: GameController) extends Listener {
     val playersPanel = playerPanelRenderObjs(game)
 
     game.state match {
-      case WaitingForPlayers =>
+      case Aborted | WaitingForPlayers =>
         val playerIds = game.playerHands.keys.toVector.sorted
 
         (
@@ -204,8 +204,6 @@ case class TuiReisen(controller: GameController) extends Listener {
             RenderObj(cardsX, cardsY, cardRender.lines)
           ) ++ playersPanel
         )
-      case Aborted => ???
-      case Ended => ???
       case e => (
         TuiView.MainMenu,
         Vector(
