@@ -1,13 +1,12 @@
 package de.htwg_konstanz.se.ui.tui
 
 import de.htwg_konstanz.se.controller.GameController
-import de.htwg_konstanz.se.models.{Card, Game, GameErrorEvent, GameEvent, GameExitEvent, GameStartedEvent, PlayerJoinEvent}
 import de.htwg_konstanz.se.models.GameState.*
+import de.htwg_konstanz.se.models.{Card, Game, GameEvent, GameExitEvent}
 import de.htwg_konstanz.se.util.Listener
 import org.jline.terminal.Terminal.*
 import org.jline.terminal.{Terminal, TerminalBuilder}
 
-import java.util.UUID
 import scala.util.{Failure, Success}
 
 // This class is going to be updated by a service in the future. Refactor it in such a way, that we call Service.register(Tui),

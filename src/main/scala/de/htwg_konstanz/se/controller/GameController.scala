@@ -63,6 +63,7 @@ class GameController(private var game: Game, private var players: Seq[Player]) e
         case Success(g) =>
           game = g
           newGame = g
+          players = players :+ player
           notifyEvent(PlayerJoinEvent(player, game))
         case Failure(f) =>
           notifyEvent(GameErrorEvent(PlayerJoinEvent(player, game), Failure(f)))
@@ -71,6 +72,7 @@ class GameController(private var game: Game, private var players: Seq[Player]) e
 
     override def undoStep(): Unit = {
       game = oldGame
+      players = players.filterNot(p => p.id == player.id)
       notifyEvent(GameChangedEvent(game))
     }
 

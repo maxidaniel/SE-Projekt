@@ -20,7 +20,6 @@ class GameControllerSpec extends AnyWordSpec {
 
     "join a player and emit a JoinEvent" in {
       val controller = new GameController()
-      val player = Player(UUID.fromString("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"), "Alice")
       var observed: Option[PlayerJoinEvent] = None
 
       controller.add {
@@ -28,7 +27,8 @@ class GameControllerSpec extends AnyWordSpec {
         case _ =>
       }
 
-      controller.join(player)
+      controller.join("Alice")
+      val player = controller.getPlayer("Alice").value
 
       controller.getGame.playerHands.keySet should contain(player.id)
       observed.map(_.player) should be(Some(player))
@@ -63,21 +63,20 @@ class GameControllerSpec extends AnyWordSpec {
 
     "not join a player when game is running and emit GameErrorEvent" in {
       val controller = new GameController(Game(Map.empty, Vector.empty, Playing), Seq.empty)
-      val player = Player(UUID.randomUUID(), "Alice")
       var observed: Option[GameErrorEvent] = None
       controller.add {
         case e: GameErrorEvent => observed = Some(e)
         case _ =>
       }
-      controller.join(player)
+      controller.join("Alice")
       observed.isDefined should be(true)
     }
 
     "not play a card and emit GameErrorEvent" in {
       val controller = new GameController(Game(Map.empty, Vector.empty, WaitingForPlayers), Seq.empty)
       var observed: Option[GameErrorEvent] = None
-      val player = new Player("Alice")
-      controller.join(player)
+      controller.join("Alice")
+      val player = controller.getPlayer("Alice").value
       controller.add {
         case e: GameErrorEvent => observed = Some(e)
         case _ =>
@@ -89,28 +88,42 @@ class GameControllerSpec extends AnyWordSpec {
 
     "quit a player and emit a QuitEvent" in {
       val p1 = UUID.randomUUID()
-      val controller = new GameController(Game(Map(p1 -> Vector.empty), Vector.empty, WaitingForPlayers), Seq.empty)
-      val player = Player(p1, "Alice")
+      val controller = new GameController(Game(Map(p1 -> Vector.empty), Vector.empty, WaitingForPlayers), Seq(Player(p1, "Alice")))
+      val player = controller.getPlayer(p1).value
       var observed: Option[PlayerQuitEvent] = None
       controller.add {
         case e: PlayerQuitEvent => observed = Some(e)
         case _ =>
       }
-      controller.quit(player)
+      controller.quit(player.id)
       controller.getGame.playerHands.keySet should not contain p1
       observed.map(_.player) should be(Some(player))
     }
 
     "not quit a player that is not part of the game and emit GameErrorEvent" in {
-      val controller = new GameController()
       val player = Player(UUID.randomUUID(), "Alice")
+      val controller = new GameController(Game(Map.empty, Vector.empty, WaitingForPlayers), Seq(player))
       var observed: Option[GameErrorEvent] = None
       controller.add {
         case e: GameErrorEvent => observed = Some(e)
         case _ =>
       }
-      controller.quit(player)
+      controller.quit(player.id)
       observed.isDefined should be(true)
+      observed.value.error.failure.exception should have message "The player with id " + player.id + " is not part of the game."
+    }
+
+    "return early from quit when player is not in players list" in {
+      val controller = new GameController()
+      controller.join("Alice")
+      val differentPlayer = Player(UUID.randomUUID(), "Nobody")
+      var observedEvents: List[GameEvent] = List.empty
+      controller.add {
+        case e: GameEvent => observedEvents = observedEvents :+ e
+        case _ =>
+      }
+      controller.quit(differentPlayer.id)
+      observedEvents should be(empty)
     }
 
     "abort a game and emit a GameAbortedEvent" in {

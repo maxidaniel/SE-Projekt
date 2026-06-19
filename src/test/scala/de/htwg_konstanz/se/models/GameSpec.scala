@@ -192,6 +192,23 @@ class GameSpec extends AnyWordSpec {
       )
       game.playCard(p1, Card.Unknown).isFailure should be(true)
     }
+
+    "reject playing a card when player is not in the game" in {
+      val p1 = UUID.randomUUID()
+      val p2 = UUID.randomUUID()
+      val game = Game(
+        Map(p1 -> Vector(Card.FourOfHearts)),
+        Vector.empty,
+        Playing,
+      )
+      game.playCard(p2, Card.FiveOfHearts).failure.exception.getMessage should include(p2.toString)
+    }
+
+    "not deal cards when fewer than two players" in {
+      val p1 = UUID.randomUUID()
+      val game = Game(Map(p1 -> Vector.empty), Vector.empty, GameState.WaitingForPlayers)
+      game.deal().failure.exception should have message "Can only deal cards when two or more players are in the game."
+    }
   }
 
   "A deck" should {

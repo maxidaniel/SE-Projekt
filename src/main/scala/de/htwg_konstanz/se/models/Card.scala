@@ -26,12 +26,8 @@ enum CardRank(val name: String, val symbol: String) {
   case Ace extends CardRank("ace", "A")
 }
 
-enum Card(val rank: CardRank, val suit: CardSuit) {
-  // Unscaled width and height
-  private val base_width = 3
-  private val base_height = 5
-
-  override def toString: String = s"${if (rank == null) '?' else rank.symbol} ${if (suit == null) '?' else suit.symbol}"
+class Card private (val rank: CardRank, val suit: CardSuit) {
+  override def toString: String = s"${if (rank == null) "?" else rank.symbol} ${if (suit == null) "?" else suit.symbol}"
 
   def render(scale: Int = 1): Vector[String] = {
     val r = if (rank == null) "?" else rank.symbol
@@ -73,66 +69,73 @@ enum Card(val rank: CardRank, val suit: CardSuit) {
     lines += bottom
     lines.toVector
   }
-
-  case Unknown extends Card(null, null)
-
-  case TwoOfHearts extends Card(CardRank.Two, CardSuit.Hearts)
-  case ThreeOfHearts extends Card(CardRank.Three, CardSuit.Hearts)
-  case FourOfHearts extends Card(CardRank.Four, CardSuit.Hearts)
-  case FiveOfHearts extends Card(CardRank.Five, CardSuit.Hearts)
-  case SixOfHearts extends Card(CardRank.Six, CardSuit.Hearts)
-  case SevenOfHearts extends Card(CardRank.Seven, CardSuit.Hearts)
-  case EightOfHearts extends Card(CardRank.Eight, CardSuit.Hearts)
-  case NineOfHearts extends Card(CardRank.Nine, CardSuit.Hearts)
-  case TenOfHearts extends Card(CardRank.Ten, CardSuit.Hearts)
-  case JackOfHearts extends Card(CardRank.Jack, CardSuit.Hearts)
-  case QueenOfHearts extends Card(CardRank.Queen, CardSuit.Hearts)
-  case KingOfHearts extends Card(CardRank.King, CardSuit.Hearts)
-  case AceOfHearts extends Card(CardRank.Ace, CardSuit.Hearts)
-
-  case TwoOfDiamonds extends Card(CardRank.Two, CardSuit.Diamonds)
-  case ThreeOfDiamonds extends Card(CardRank.Three, CardSuit.Diamonds)
-  case FourOfDiamonds extends Card(CardRank.Four, CardSuit.Diamonds)
-  case FiveOfDiamonds extends Card(CardRank.Five, CardSuit.Diamonds)
-  case SixOfDiamonds extends Card(CardRank.Six, CardSuit.Diamonds)
-  case SevenOfDiamonds extends Card(CardRank.Seven, CardSuit.Diamonds)
-  case EightOfDiamonds extends Card(CardRank.Eight, CardSuit.Diamonds)
-  case NineOfDiamonds extends Card(CardRank.Nine, CardSuit.Diamonds)
-  case TenOfDiamonds extends Card(CardRank.Ten, CardSuit.Diamonds)
-  case JackOfDiamonds extends Card(CardRank.Jack, CardSuit.Diamonds)
-  case QueenOfDiamonds extends Card(CardRank.Queen, CardSuit.Diamonds)
-  case KingOfDiamonds extends Card(CardRank.King, CardSuit.Diamonds)
-  case AceOfDiamonds extends Card(CardRank.Ace, CardSuit.Diamonds)
-
-  case TwoOfClubs extends Card(CardRank.Two, CardSuit.Clubs)
-  case ThreeOfClubs extends Card(CardRank.Three, CardSuit.Clubs)
-  case FourOfClubs extends Card(CardRank.Four, CardSuit.Clubs)
-  case FiveOfClubs extends Card(CardRank.Five, CardSuit.Clubs)
-  case SixOfClubs extends Card(CardRank.Six, CardSuit.Clubs)
-  case SevenOfClubs extends Card(CardRank.Seven, CardSuit.Clubs)
-  case EightOfClubs extends Card(CardRank.Eight, CardSuit.Clubs)
-  case NineOfClubs extends Card(CardRank.Nine, CardSuit.Clubs)
-  case TenOfClubs extends Card(CardRank.Ten, CardSuit.Clubs)
-  case JackOfClubs extends Card(CardRank.Jack, CardSuit.Clubs)
-  case QueenOfClubs extends Card(CardRank.Queen, CardSuit.Clubs)
-  case KingOfClubs extends Card(CardRank.King, CardSuit.Clubs)
-  case AceOfClubs extends Card(CardRank.Ace, CardSuit.Clubs)
-
-  case TwoOfSpades extends Card(CardRank.Two, CardSuit.Spades)
-  case ThreeOfSpades extends Card(CardRank.Three, CardSuit.Spades)
-  case FourOfSpades extends Card(CardRank.Four, CardSuit.Spades)
-  case FiveOfSpades extends Card(CardRank.Five, CardSuit.Spades)
-  case SixOfSpades extends Card(CardRank.Six, CardSuit.Spades)
-  case SevenOfSpades extends Card(CardRank.Seven, CardSuit.Spades)
-  case EightOfSpades extends Card(CardRank.Eight, CardSuit.Spades)
-  case NineOfSpades extends Card(CardRank.Nine, CardSuit.Spades)
-  case TenOfSpades extends Card(CardRank.Ten, CardSuit.Spades)
-  case JackOfSpades extends Card(CardRank.Jack, CardSuit.Spades)
-  case QueenOfSpades extends Card(CardRank.Queen, CardSuit.Spades)
-  case KingOfSpades extends Card(CardRank.King, CardSuit.Spades)
-  case AceOfSpades extends Card(CardRank.Ace, CardSuit.Spades)
 }
 
 object Card {
-  val standardDeckCards: Vector[Card] = Card.values.filterNot(card => card == Card.Unknown).toVector
+  case object Unknown extends Card(null, null) with Product with Serializable
+
+  // Convenience vals for backward compatibility
+  val TwoOfHearts = Card(CardRank.Two, CardSuit.Hearts)
+  val ThreeOfHearts = Card(CardRank.Three, CardSuit.Hearts)
+  val FourOfHearts = Card(CardRank.Four, CardSuit.Hearts)
+  val FiveOfHearts = Card(CardRank.Five, CardSuit.Hearts)
+  val SixOfHearts = Card(CardRank.Six, CardSuit.Hearts)
+  val SevenOfHearts = Card(CardRank.Seven, CardSuit.Hearts)
+  val EightOfHearts = Card(CardRank.Eight, CardSuit.Hearts)
+  val NineOfHearts = Card(CardRank.Nine, CardSuit.Hearts)
+  val TenOfHearts = Card(CardRank.Ten, CardSuit.Hearts)
+  val JackOfHearts = Card(CardRank.Jack, CardSuit.Hearts)
+  val QueenOfHearts = Card(CardRank.Queen, CardSuit.Hearts)
+  val KingOfHearts = Card(CardRank.King, CardSuit.Hearts)
+  val AceOfHearts = Card(CardRank.Ace, CardSuit.Hearts)
+
+  val TwoOfDiamonds = Card(CardRank.Two, CardSuit.Diamonds)
+  val ThreeOfDiamonds = Card(CardRank.Three, CardSuit.Diamonds)
+  val FourOfDiamonds = Card(CardRank.Four, CardSuit.Diamonds)
+  val FiveOfDiamonds = Card(CardRank.Five, CardSuit.Diamonds)
+  val SixOfDiamonds = Card(CardRank.Six, CardSuit.Diamonds)
+  val SevenOfDiamonds = Card(CardRank.Seven, CardSuit.Diamonds)
+  val EightOfDiamonds = Card(CardRank.Eight, CardSuit.Diamonds)
+  val NineOfDiamonds = Card(CardRank.Nine, CardSuit.Diamonds)
+  val TenOfDiamonds = Card(CardRank.Ten, CardSuit.Diamonds)
+  val JackOfDiamonds = Card(CardRank.Jack, CardSuit.Diamonds)
+  val QueenOfDiamonds = Card(CardRank.Queen, CardSuit.Diamonds)
+  val KingOfDiamonds = Card(CardRank.King, CardSuit.Diamonds)
+  val AceOfDiamonds = Card(CardRank.Ace, CardSuit.Diamonds)
+
+  val TwoOfClubs = Card(CardRank.Two, CardSuit.Clubs)
+  val ThreeOfClubs = Card(CardRank.Three, CardSuit.Clubs)
+  val FourOfClubs = Card(CardRank.Four, CardSuit.Clubs)
+  val FiveOfClubs = Card(CardRank.Five, CardSuit.Clubs)
+  val SixOfClubs = Card(CardRank.Six, CardSuit.Clubs)
+  val SevenOfClubs = Card(CardRank.Seven, CardSuit.Clubs)
+  val EightOfClubs = Card(CardRank.Eight, CardSuit.Clubs)
+  val NineOfClubs = Card(CardRank.Nine, CardSuit.Clubs)
+  val TenOfClubs = Card(CardRank.Ten, CardSuit.Clubs)
+  val JackOfClubs = Card(CardRank.Jack, CardSuit.Clubs)
+  val QueenOfClubs = Card(CardRank.Queen, CardSuit.Clubs)
+  val KingOfClubs = Card(CardRank.King, CardSuit.Clubs)
+  val AceOfClubs = Card(CardRank.Ace, CardSuit.Clubs)
+
+  val TwoOfSpades = Card(CardRank.Two, CardSuit.Spades)
+  val ThreeOfSpades = Card(CardRank.Three, CardSuit.Spades)
+  val FourOfSpades = Card(CardRank.Four, CardSuit.Spades)
+  val FiveOfSpades = Card(CardRank.Five, CardSuit.Spades)
+  val SixOfSpades = Card(CardRank.Six, CardSuit.Spades)
+  val SevenOfSpades = Card(CardRank.Seven, CardSuit.Spades)
+  val EightOfSpades = Card(CardRank.Eight, CardSuit.Spades)
+  val NineOfSpades = Card(CardRank.Nine, CardSuit.Spades)
+  val TenOfSpades = Card(CardRank.Ten, CardSuit.Spades)
+  val JackOfSpades = Card(CardRank.Jack, CardSuit.Spades)
+  val QueenOfSpades = Card(CardRank.Queen, CardSuit.Spades)
+  val KingOfSpades = Card(CardRank.King, CardSuit.Spades)
+  val AceOfSpades = Card(CardRank.Ace, CardSuit.Spades)
+
+  val standardDeckCards: Vector[Card] = {
+    val builder = Vector.newBuilder[Card]
+    for (rank <- CardRank.values; suit <- CardSuit.values) {
+      builder += Card(rank, suit)
+    }
+    builder.result()
+  }
 }

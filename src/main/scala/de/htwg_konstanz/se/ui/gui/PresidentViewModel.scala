@@ -13,6 +13,7 @@ class PresidentViewModel(controller: GameController) {
   var knownPlayers: Map[UUID, String] = Map.empty
   var statusMessage: String = "Welcome to President. Create a lobby to begin."
   var resultTitle: String = "Game finished"
+  var isErrorMessage: Boolean = false
 
   def handleEvent(event: GameEvent): Unit = {
     event match {
@@ -50,7 +51,19 @@ class PresidentViewModel(controller: GameController) {
         currentView = viewForGame(game)
 
       case GameErrorEvent(cause, error) =>
-      // TODO: Handle error event properly if needed
+        isErrorMessage = true
+        cause match {
+          case PlayerJoinEvent(player, _) =>
+            statusMessage = s"Could not join: ${error.exception.getMessage}"
+          case PlayerQuitEvent(player, _) =>
+            statusMessage = s"Could not leave: ${error.exception.getMessage}"
+          case GameStartedEvent(_) =>
+            statusMessage = s"Could not start game: ${error.exception.getMessage}"
+          case CardPlayedEvent(player, card, _) =>
+            statusMessage = s"Could not play card: ${error.exception.getMessage}"
+          case _ =>
+            statusMessage = s"An error occurred: ${error.exception.getMessage}"
+        }
     }
   }
 
