@@ -29,4 +29,4 @@ lazy val root = project
   )
 
 coverageExcludedPackages := "<empty>;.*ui.*"
-coverageExcludedFiles := "<empty>;President;.*ui.*"
+coverageExcludedFiles := "<empty>;.*President.*;.*ui.*"
