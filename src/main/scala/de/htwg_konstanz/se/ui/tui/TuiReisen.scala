@@ -7,7 +7,7 @@ import de.htwg_konstanz.se.util.Listener
 import org.jline.terminal.Terminal.*
 import org.jline.terminal.{Terminal, TerminalBuilder}
 
-import scala.util.{Failure, Success}
+
 
 // This class is going to be updated by a service in the future. Refactor it in such a way, that we call Service.register(Tui),
 // which establishes event handling in the tui, and then call Service.run(), which then handles all game state.
@@ -57,12 +57,13 @@ case class TuiReisen(controller: GameController) extends Listener {
         case 'q' => controller.exit()
 
         // Enter key
-        case 13 => controller.start()
+        case 13 =>
+          if controller.getGameState == Aborted then
+            controller.reset()
+          controller.start()
 
         // +
-        case 43 =>
-          handlePlus(controller.getGame)
-          controller.join("")
+        case 43 => handlePlus(controller.getGame)
 
         // -
         case 45 => handleMinus(controller.getGame)
@@ -113,26 +114,13 @@ case class TuiReisen(controller: GameController) extends Listener {
     }
   }
 
-  // This is the start round/continue to next person handler
-  private[tui] def handleEnter(game: Game): Game = {
-    game.state match {
-      case WaitingForPlayers => game.start() match {
-        case Success(g) => g
-        case Failure(e) =>
-          println(e.getMessage)
-          game
-      }
-      case _ => game
-    }
-  }
-
-  // Add player
-  private[tui] def handlePlus(game: Game): Game = {
+ private[tui] def handlePlus(game: Game): Unit = {
     game.state match {
       case Playing =>
         renderScale = math.min(3, renderScale + 1)
-        game
-      case _ => game
+      case WaitingForPlayers =>
+        controller.join("")
+      case _ =>
     }
   }
 
@@ -144,28 +132,11 @@ case class TuiReisen(controller: GameController) extends Listener {
     }
   }
 
-  private[tui] def handleEscape(game: Game): Game = {
-    game.state match {
-      case Playing =>
-        renderScale = 1
-        game.copy(playedCards = Vector.empty, state = WaitingForPlayers)
-      case _ =>
-        game
-    }
-  }
-
-  // Select
-  private[tui] def handleSpace(game: Game): Game = {
-    game.state match {
-      case _ => game
-    }
-  }
-
   private[tui] def renderObjsForState(game: Game): (TuiView, Vector[RenderObj]) = {
     val playersPanel = playerPanelRenderObjs(game)
 
     game.state match {
-      case Aborted | WaitingForPlayers =>
+      case WaitingForPlayers =>
         val playerIds = game.playerHands.keys.toVector.sorted
 
         (
@@ -173,6 +144,18 @@ case class TuiReisen(controller: GameController) extends Listener {
           Vector(
             RenderObj(2, 1, Vector("Waiting For Players")),
             RenderObj(2, 3, Vector("+: Add player  Enter: Start game  q: Quit")),
+            RenderObj(2, 5, Vector(s"Players connected: ${playerIds.size}"))
+          ) ++ playersPanel
+        )
+
+      case Aborted =>
+        val playerIds = game.playerHands.keys.toVector.sorted
+
+        (
+          TuiView.MainMenu,
+          Vector(
+            RenderObj(2, 1, Vector("Game Aborted")),
+            RenderObj(2, 3, Vector("Enter: Reset & Start  q: Quit")),
             RenderObj(2, 5, Vector(s"Players connected: ${playerIds.size}"))
           ) ++ playersPanel
         )

@@ -1,6 +1,6 @@
 package de.htwg_konstanz.se.controller
 
-import de.htwg_konstanz.se.models.GameState.{Aborted, Playing, WaitingForPlayers}
+import de.htwg_konstanz.se.models.GameState.{Aborted, Ended, Playing, WaitingForPlayers}
 import de.htwg_konstanz.se.models.*
 import de.htwg_konstanz.se.util.Listener
 import org.scalatest.matchers.should.Matchers.*
@@ -142,6 +142,56 @@ class GameControllerSpec extends AnyWordSpec {
       val controller = new GameController()
       controller.abort()
       controller.getGameState should not be (Aborted)
+    }
+
+    "reset an aborted game to waiting state with existing players" in {
+      val p1 = UUID.randomUUID()
+      val p2 = UUID.randomUUID()
+      val game = Game(
+        Map(p1 -> Vector(Card.ThreeOfHearts), p2 -> Vector(Card.FourOfClubs)),
+        Vector(Card.FiveOfSpades),
+        Aborted
+      )
+      val controller = new GameController(game, Seq(Player(p1, "Alice"), Player(p2, "Bob")))
+
+      controller.reset()
+      controller.getGameState should be(WaitingForPlayers)
+      controller.getGame.playerHands.keySet should contain(p1)
+      controller.getGame.playerHands.keySet should contain(p2)
+      controller.getGame.playerHands(p1) should be(Vector.empty)
+      controller.getGame.playerHands(p2) should be(Vector.empty)
+      controller.getGame.playedCards should be(Vector.empty)
+    }
+
+    "reset an ended game to waiting state with existing players" in {
+      val p1 = UUID.randomUUID()
+      val p2 = UUID.randomUUID()
+      val game = Game(
+        Map(p1 -> Vector.empty, p2 -> Vector(Card.KingOfHearts)),
+        Vector(Card.AceOfSpades),
+        Ended
+      )
+      val controller = new GameController(game, Seq(Player(p1, "Alice"), Player(p2, "Bob")))
+
+      controller.reset()
+      controller.getGameState should be(WaitingForPlayers)
+      controller.getGame.playerHands.keySet should contain(p1)
+      controller.getGame.playerHands.keySet should contain(p2)
+    }
+
+    "notify listeners on reset" in {
+      val controller = new GameController(Game(Map.empty, Vector.empty, Aborted), Seq.empty)
+      var observed: Option[GameEvent] = None
+      controller.add {
+        case e: GameEvent => observed = Some(e)
+        case _ =>
+      }
+      controller.reset()
+      observed.isDefined should be(true)
+      observed.get match {
+        case GameChangedEvent(_) => // correct
+        case _ => fail("Expected GameChangedEvent")
+      }
     }
 
     "not start a game when fewer than 2 players and emit GameErrorEvent" in {

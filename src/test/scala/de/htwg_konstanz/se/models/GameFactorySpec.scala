@@ -3,6 +3,8 @@ package de.htwg_konstanz.se.models
 import org.scalatest.matchers.should.Matchers._
 import org.scalatest.wordspec.AnyWordSpec
 
+import java.util.UUID
+
 class GameFactorySpec extends AnyWordSpec {
   "GameFactory.create" should {
     "create a game with the correct number of players" in {
@@ -33,6 +35,15 @@ class GameFactorySpec extends AnyWordSpec {
     "create a game with no players given empty seq" in {
       val game = GameFactory.create(Seq.empty)
       game.playerHands should be(Map.empty)
+    }
+
+    "preserve given player ids when using map overload" in {
+      val aliceId = UUID.fromString("11111111-1111-1111-1111-111111111111")
+      val bobId = UUID.fromString("22222222-2222-2222-2222-222222222222")
+      val game = GameFactory.create(Map("Alice" -> aliceId, "Bob" -> bobId))
+      game.playerHands.keySet should contain(aliceId)
+      game.playerHands.keySet should contain(bobId)
+      game.playerHands.size should be(2)
     }
   }
 

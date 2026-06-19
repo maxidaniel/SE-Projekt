@@ -11,7 +11,7 @@ class GameController(private var game: Game, private var players: Seq[Player]) e
   private var undoManager = UndoManager()
 
   def this() = {
-    this(new Game(), Seq.empty)
+    this(GameFactory.create(Seq.empty), Seq.empty)
   }
 
   def join(name: String): Unit = {
@@ -161,6 +161,12 @@ class GameController(private var game: Game, private var players: Seq[Player]) e
       game = newGame
       notifyEvent(CardPlayedEvent(player, card, game))
     }
+  }
+
+  def reset(): Unit = {
+    val playerNameIds = players.map(p => p.name -> p.id).toMap
+    game = GameFactory.create(playerNameIds)
+    notifyEvent(GameChangedEvent(game))
   }
 
   def exit(): Unit = notifyEvent(GameExitEvent)

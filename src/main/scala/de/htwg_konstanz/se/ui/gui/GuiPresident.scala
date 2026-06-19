@@ -179,10 +179,16 @@ case class GuiPresident(controller: GameController) extends Listener, JFXApp3 {
     ),
     actions = Seq(
       new Button("Back to Lobby") {
-        onAction = eventHandler(navigateTo(View.Lobby))
+        onAction = eventHandler {
+          controller.reset()
+          navigateTo(View.Lobby)
+        }
       },
       new Button("Main Menu") {
-        onAction = eventHandler(navigateTo(View.Menu))
+        onAction = eventHandler {
+          controller.reset()
+          navigateTo(View.Menu)
+        }
       }
     )
   )

@@ -54,7 +54,7 @@ case object WaitingForPlayersState extends GameState {
   }
 
   private def dealCards(game: Game): Try[Game] = {
-    val shuffledCards = new Deck().shuffle().cards
+    val shuffledCards = DeckFactory.shuffledStandardDeck().cards
     val playerIds = game.playerHands.keys.toVector
     val emptyHands = playerIds.map(playerId => playerId -> Vector.empty[Card]).toMap
 

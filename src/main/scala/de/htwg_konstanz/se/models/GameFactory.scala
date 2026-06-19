@@ -5,8 +5,12 @@ import java.util.UUID
 object GameFactory {
   def create(playerNames: Seq[String]): Game = {
     val playerIds = playerNames.map(_ -> UUID.randomUUID()).toMap
+    create(playerIds)
+  }
+
+  def create(playerNameIds: Map[String, UUID]): Game = {
     Game(
-      playerIds.map { case (_, id) => id -> Vector.empty }.toMap,
+      playerNameIds.map { case (_, id) => id -> Vector.empty }.toMap,
       Vector.empty,
       GameState.WaitingForPlayers
     )
