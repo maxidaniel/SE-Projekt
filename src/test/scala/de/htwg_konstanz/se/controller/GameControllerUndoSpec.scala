@@ -14,12 +14,15 @@ class GameControllerUndoSpec extends AnyWordSpec {
       controller.join("Alice")
       val p1 = controller.getPlayer("Alice").value
       controller.getGame.playerHands should contain key p1.id
+      controller.getGame.playerNames should contain key p1.id
       
       controller.undo()
       controller.getGame.playerHands shouldNot contain key p1.id
+      controller.getGame.playerNames shouldNot contain key p1.id
       
       controller.redo()
       controller.getGame.playerHands should contain key p1.id
+      controller.getGame.playerNames should contain key p1.id
     }
 
     "undo starting the game" in {

@@ -10,20 +10,20 @@ enum CardSuit(val name: String, val symbol: String) {
   case Spades extends CardSuit("spades", "♠")
 }
 
-enum CardRank(val name: String, val symbol: String) {
-  case Two extends CardRank("two", "2")
-  case Three extends CardRank("three", "3")
-  case Four extends CardRank("four", "4")
-  case Five extends CardRank("five", "5")
-  case Six extends CardRank("six", "6")
-  case Seven extends CardRank("seven", "7")
-  case Eight extends CardRank("eight", "8")
-  case Nine extends CardRank("nine", "9")
-  case Ten extends CardRank("ten", "10")
-  case Jack extends CardRank("jack", "J")
-  case Queen extends CardRank("queen", "Q")
-  case King extends CardRank("king", "K")
-  case Ace extends CardRank("ace", "A")
+enum CardRank(val name: String, val symbol: String, val value: Int) {
+  case Two extends CardRank("two", "2", 2)
+  case Three extends CardRank("three", "3", 3)
+  case Four extends CardRank("four", "4", 4)
+  case Five extends CardRank("five", "5", 5)
+  case Six extends CardRank("six", "6", 6)
+  case Seven extends CardRank("seven", "7", 7)
+  case Eight extends CardRank("eight", "8", 8)
+  case Nine extends CardRank("nine", "9", 9)
+  case Ten extends CardRank("ten", "10", 10)
+  case Jack extends CardRank("jack", "J", 11)
+  case Queen extends CardRank("queen", "Q", 12)
+  case King extends CardRank("king", "K", 13)
+  case Ace extends CardRank("ace", "A", 14)
 }
 
 class Card private (val rank: CardRank, val suit: CardSuit) {

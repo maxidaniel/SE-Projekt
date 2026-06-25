@@ -114,12 +114,21 @@ case object PlayingState extends GameState {
     game.playerHands.get(playerId) match {
       case None => Failure(Exception(s"The player with id $playerId is not part of the game."))
       case Some(hand) if !hand.contains(card) => Failure(Exception(s"Player $playerId does not have card $card in hand."))
+      case Some(hand) if game.currentPlayer.exists(_ != playerId) =>
+        Failure(Exception("It is not the player's turn - not the turn."))
       case Some(hand) if game.playedCards.lastOption.exists(lastPlayed => !Game.canBeat(card, lastPlayed)) =>
         Failure(Exception("Played card must outrank the previous card."))
       case Some(hand) =>
         val updatedHands = game.playerHands.updated(playerId, hand.filterNot(_ == card))
         val updatedState = if (updatedHands(playerId).isEmpty) EndedState else PlayingState
-        Success(game.copy(playerHands = updatedHands, playedCards = game.playedCards :+ card, state = updatedState))
+        val nextPlayer = if (updatedState == EndedState) None
+                         else game.playerHands.keys.find(_ != playerId)
+        Success(game.copy(
+          playerHands = updatedHands,
+          playedCards = game.playedCards :+ card,
+          state = updatedState,
+          currentPlayer = nextPlayer
+        ))
     }
   }
 }

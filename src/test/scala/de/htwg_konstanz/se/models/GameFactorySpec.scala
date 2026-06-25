@@ -44,6 +44,8 @@ class GameFactorySpec extends AnyWordSpec {
       game.playerHands.keySet should contain(aliceId)
       game.playerHands.keySet should contain(bobId)
       game.playerHands.size should be(2)
+      game.playerNames(aliceId) should be("Alice")
+      game.playerNames(bobId) should be("Bob")
     }
   }
 

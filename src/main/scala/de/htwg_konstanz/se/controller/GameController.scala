@@ -7,34 +7,46 @@ import java.util.UUID
 import scala.compiletime.uninitialized
 import scala.util.{Failure, Success}
 
-class GameController(private var game: Game, private var players: Seq[Player]) extends Provider {
+trait IController {
+  
+}
+
+class GameController(private var game: Game) extends IController, Provider {
   private var undoManager = UndoManager()
 
   def this() = {
-    this(GameFactory.create(Seq.empty), Seq.empty)
+    this(GameFactory.create(Seq.empty))
   }
 
   def join(name: String): Unit = {
-    undoManager = undoManager.doStep(new JoinCommand(new Player(name)))
+    val player = new Player(name)
+    undoManager = undoManager.doStep(new JoinCommand(game, player))
   }
 
   def quit(uuid: UUID): Unit = {
-    val player = players.find(p => p.id == uuid)
-    if player.isEmpty then return
-    undoManager = undoManager.doStep(new QuitCommand(player.get))
+    val player = getPlayer(uuid)
+    if player.isEmpty then {
+      notifyEvent(GameErrorEvent(PlayerQuitEvent(Player(uuid, "Unknown"), game), Failure(new Exception(s"The player with id $uuid is not part of the game."))))
+    } else {
+      undoManager = undoManager.doStep(new QuitCommand(game, player.get))
+    }
   }
 
   def start(): Unit = {
-    undoManager = undoManager.doStep(new StartCommand())
+    undoManager = undoManager.doStep(new StartCommand(game))
   }
 
   def playCard(player: Player, card: Card): Unit = {
-    undoManager = undoManager.doStep(new PlayCardCommand(player, card))
+    undoManager = undoManager.doStep(new PlayCardCommand(game, player, card))
   }
 
-  def getPlayer(name: String): Option[Player] = players.find(p => p.name == name)
+  def getPlayer(name: String): Option[Player] = {
+    game.playerNames.find { case (_, n) => n == name }.map { case (id, _) => Player(id, name) }
+  }
 
-  def getPlayer(uuid: UUID): Option[Player] = players.find(p => p.id == uuid)
+  def getPlayer(uuid: UUID): Option[Player] = {
+    game.playerNames.get(uuid).map(name => Player(uuid, name))
+  }
 
   def abort(): Unit = {
     game.abort() match {
@@ -53,7 +65,7 @@ class GameController(private var game: Game, private var players: Seq[Player]) e
     undoManager = undoManager.redoStep()
   }
 
-  private class JoinCommand(player: Player) extends Command {
+  private class JoinCommand(gameRef: Game, player: Player) extends Command {
     private var oldGame: Game = uninitialized
     private var newGame: Game = uninitialized
 
@@ -61,10 +73,10 @@ class GameController(private var game: Game, private var players: Seq[Player]) e
       oldGame = game
       game.join(player.id) match {
         case Success(g) =>
-          game = g
-          newGame = g
-          players = players :+ player
-          notifyEvent(PlayerJoinEvent(player, game))
+          val gWithNames = g.withPlayerName(player.id, player.name)
+          game = gWithNames
+          newGame = gWithNames
+          notifyEvent(PlayerJoinEvent(player, gWithNames))
         case Failure(f) =>
           notifyEvent(GameErrorEvent(PlayerJoinEvent(player, game), Failure(f)))
       }
@@ -72,7 +84,6 @@ class GameController(private var game: Game, private var players: Seq[Player]) e
 
     override def undoStep(): Unit = {
       game = oldGame
-      players = players.filterNot(p => p.id == player.id)
       notifyEvent(GameChangedEvent(game))
     }
 
@@ -82,7 +93,7 @@ class GameController(private var game: Game, private var players: Seq[Player]) e
     }
   }
 
-  private class QuitCommand(player: Player) extends Command {
+  private class QuitCommand(gameRef: Game, player: Player) extends Command {
     private var oldGame: Game = uninitialized
     private var newGame: Game = uninitialized
 
@@ -90,9 +101,10 @@ class GameController(private var game: Game, private var players: Seq[Player]) e
       oldGame = game
       game.quit(player.id) match {
         case Success(g) =>
-          game = g
-          newGame = g
-          notifyEvent(PlayerQuitEvent(player, game))
+          val gWithoutName = g.withoutPlayerName(player.id)
+          game = gWithoutName
+          newGame = gWithoutName
+          notifyEvent(PlayerQuitEvent(player, gWithoutName))
         case Failure(f) =>
           notifyEvent(GameErrorEvent(PlayerQuitEvent(player, game), Failure(f)))
       }
@@ -109,7 +121,7 @@ class GameController(private var game: Game, private var players: Seq[Player]) e
     }
   }
 
-  private class StartCommand() extends Command {
+  private class StartCommand(gameRef: Game) extends Command {
     private var oldGame: Game = uninitialized
     private var newGame: Game = uninitialized
 
@@ -136,7 +148,7 @@ class GameController(private var game: Game, private var players: Seq[Player]) e
     }
   }
 
-  private class PlayCardCommand(player: Player, card: Card) extends Command {
+  private class PlayCardCommand(gameRef: Game, player: Player, card: Card) extends Command {
     private var oldGame: Game = uninitialized
     private var newGame: Game = uninitialized
 
@@ -146,7 +158,11 @@ class GameController(private var game: Game, private var players: Seq[Player]) e
         case Success(g) =>
           game = g
           newGame = g
-          notifyEvent(CardPlayedEvent(player, card, game))
+          if (g.state == EndedState) {
+            notifyEvent(GameEndedEvent(g, player))
+          } else {
+            notifyEvent(CardPlayedEvent(player, card, game))
+          }
         case Failure(f) =>
           notifyEvent(GameErrorEvent(CardPlayedEvent(player, card, game), Failure(f)))
       }
@@ -164,7 +180,7 @@ class GameController(private var game: Game, private var players: Seq[Player]) e
   }
 
   def reset(): Unit = {
-    val playerNameIds = players.map(p => p.name -> p.id).toMap
+    val playerNameIds = game.playerNames.map { case (id, name) => name -> id }.toMap
     game = GameFactory.create(playerNameIds)
     notifyEvent(GameChangedEvent(game))
   }

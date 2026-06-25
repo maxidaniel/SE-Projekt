@@ -10,9 +10,10 @@ object GameFactory {
 
   def create(playerNameIds: Map[String, UUID]): Game = {
     Game(
-      playerNameIds.map { case (_, id) => id -> Vector.empty }.toMap,
+      playerNameIds.map { case (_, id) => id -> Vector.empty },
       Vector.empty,
-      GameState.WaitingForPlayers
+      GameState.WaitingForPlayers,
+      playerNameIds.map { case (name, id) => id -> name }
     )
   }
 

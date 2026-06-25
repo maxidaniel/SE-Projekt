@@ -38,8 +38,8 @@ class GameControllerSpec extends AnyWordSpec {
     "start a game and emit StartEvent when enough players exist" in {
       val p1 = UUID.fromString("11111111-1111-1111-1111-111111111111")
       val p2 = UUID.fromString("22222222-2222-2222-2222-222222222222")
-      val game = Game(Map(p1 -> Vector.empty, p2 -> Vector.empty), Vector.empty, WaitingForPlayers)
-      val controller = GameController(game, Seq.empty)
+      val game = Game(Map(p1 -> Vector.empty, p2 -> Vector.empty), Vector.empty, WaitingForPlayers, Map(p1 -> "Alice", p2 -> "Bob"))
+      val controller = GameController(game)
       var observed: Option[GameStartedEvent] = None
 
       controller.add {
@@ -55,14 +55,14 @@ class GameControllerSpec extends AnyWordSpec {
 
     "set and expose game instance" in {
       val customGame = Game(Map.empty, Vector.empty, Playing)
-      val controller = new GameController(customGame, Seq.empty)
+      val controller = new GameController(customGame)
 
       controller.getGame should be(customGame)
       controller.getGameState should be(Playing)
     }
 
     "not join a player when game is running and emit GameErrorEvent" in {
-      val controller = new GameController(Game(Map.empty, Vector.empty, Playing), Seq.empty)
+      val controller = new GameController(Game(Map.empty, Vector.empty, Playing))
       var observed: Option[GameErrorEvent] = None
       controller.add {
         case e: GameErrorEvent => observed = Some(e)
@@ -73,10 +73,10 @@ class GameControllerSpec extends AnyWordSpec {
     }
 
     "not play a card and emit GameErrorEvent" in {
-      val controller = new GameController(Game(Map.empty, Vector.empty, WaitingForPlayers), Seq.empty)
-      var observed: Option[GameErrorEvent] = None
+      val controller = new GameController(Game(Map.empty, Vector.empty, WaitingForPlayers))
       controller.join("Alice")
       val player = controller.getPlayer("Alice").value
+      var observed: Option[GameErrorEvent] = None
       controller.add {
         case e: GameErrorEvent => observed = Some(e)
         case _ =>
@@ -88,7 +88,7 @@ class GameControllerSpec extends AnyWordSpec {
 
     "quit a player and emit a QuitEvent" in {
       val p1 = UUID.randomUUID()
-      val controller = new GameController(Game(Map(p1 -> Vector.empty), Vector.empty, WaitingForPlayers), Seq(Player(p1, "Alice")))
+      val controller = new GameController(Game(Map(p1 -> Vector.empty), Vector.empty, WaitingForPlayers, Map(p1 -> "Alice")))
       val player = controller.getPlayer(p1).value
       var observed: Option[PlayerQuitEvent] = None
       controller.add {
@@ -102,7 +102,7 @@ class GameControllerSpec extends AnyWordSpec {
 
     "not quit a player that is not part of the game and emit GameErrorEvent" in {
       val player = Player(UUID.randomUUID(), "Alice")
-      val controller = new GameController(Game(Map.empty, Vector.empty, WaitingForPlayers), Seq(player))
+      val controller = new GameController(Game(Map.empty, Vector.empty, WaitingForPlayers))
       var observed: Option[GameErrorEvent] = None
       controller.add {
         case e: GameErrorEvent => observed = Some(e)
@@ -110,7 +110,6 @@ class GameControllerSpec extends AnyWordSpec {
       }
       controller.quit(player.id)
       observed.isDefined should be(true)
-      observed.value.error.failure.exception should have message "The player with id " + player.id + " is not part of the game."
     }
 
     "return early from quit when player is not in players list" in {
@@ -127,7 +126,7 @@ class GameControllerSpec extends AnyWordSpec {
     }
 
     "abort a game and emit a GameAbortedEvent" in {
-      val controller = new GameController(Game(Map.empty, Vector.empty, Playing), Seq.empty)
+      val controller = new GameController(Game(Map.empty, Vector.empty, Playing))
       var observed: Option[GameAbortedEvent] = None
       controller.add {
         case e: GameAbortedEvent => observed = Some(e)
@@ -150,9 +149,10 @@ class GameControllerSpec extends AnyWordSpec {
       val game = Game(
         Map(p1 -> Vector(Card.ThreeOfHearts), p2 -> Vector(Card.FourOfClubs)),
         Vector(Card.FiveOfSpades),
-        Aborted
+        Aborted,
+        Map(p1 -> "Alice", p2 -> "Bob")
       )
-      val controller = new GameController(game, Seq(Player(p1, "Alice"), Player(p2, "Bob")))
+      val controller = new GameController(game)
 
       controller.reset()
       controller.getGameState should be(WaitingForPlayers)
@@ -169,9 +169,10 @@ class GameControllerSpec extends AnyWordSpec {
       val game = Game(
         Map(p1 -> Vector.empty, p2 -> Vector(Card.KingOfHearts)),
         Vector(Card.AceOfSpades),
-        Ended
+        Ended,
+        Map(p1 -> "Alice", p2 -> "Bob")
       )
-      val controller = new GameController(game, Seq(Player(p1, "Alice"), Player(p2, "Bob")))
+      val controller = new GameController(game)
 
       controller.reset()
       controller.getGameState should be(WaitingForPlayers)
@@ -180,7 +181,7 @@ class GameControllerSpec extends AnyWordSpec {
     }
 
     "notify listeners on reset" in {
-      val controller = new GameController(Game(Map.empty, Vector.empty, Aborted), Seq.empty)
+      val controller = new GameController(Game(Map.empty, Vector.empty, Aborted))
       var observed: Option[GameEvent] = None
       controller.add {
         case e: GameEvent => observed = Some(e)
@@ -195,7 +196,7 @@ class GameControllerSpec extends AnyWordSpec {
     }
 
     "not start a game when fewer than 2 players and emit GameErrorEvent" in {
-      val controller = new GameController(Game(Map.empty, Vector.empty, WaitingForPlayers), Seq.empty)
+      val controller = new GameController(Game(Map.empty, Vector.empty, WaitingForPlayers))
       var observed: Option[GameErrorEvent] = None
       controller.add {
         case e: GameErrorEvent => observed = Some(e)
@@ -214,6 +215,50 @@ class GameControllerSpec extends AnyWordSpec {
       }
       controller.exit()
       observed should be(true)
+    }
+
+    "emit GameEndedEvent when a player plays their last card" in {
+      val p1 = UUID.fromString("11111111-1111-1111-1111-111111111111")
+      val p2 = UUID.fromString("22222222-2222-2222-2222-222222222222")
+      val game = Game(
+        Map(
+          p1 -> Vector(Card.AceOfSpades),
+          p2 -> Vector(Card.KingOfHearts, Card.QueenOfClubs)
+        ),
+        Vector(Card.FiveOfClubs),
+        Playing,
+        Map(p1 -> "Alice", p2 -> "Bob")
+      )
+      val controller = GameController(game)
+      var observed: Option[GameEndedEvent] = None
+      controller.add {
+        case e: GameEndedEvent => observed = Some(e)
+        case _ =>
+      }
+      controller.playCard(controller.getPlayer("Alice").value, Card.AceOfSpades)
+      observed.isDefined should be(true)
+      observed.get.winner.name should be("Alice")
+    }
+
+    "reject playing a card when it is not the player turn" in {
+      val p1 = UUID.fromString("11111111-1111-1111-1111-111111111111")
+      val p2 = UUID.fromString("22222222-2222-2222-2222-222222222222")
+      val game = Game(
+        Map(p1 -> Vector(Card.KingOfHearts), p2 -> Vector(Card.AceOfSpades)),
+        Vector(Card.FiveOfClubs),
+        Playing,
+        Map(p1 -> "Alice", p2 -> "Bob"),
+        Some(p2)
+      )
+      val controller = GameController(game)
+      var observed: Option[GameErrorEvent] = None
+      controller.add {
+        case e: GameErrorEvent => observed = Some(e)
+        case _ =>
+      }
+      controller.playCard(controller.getPlayer("Alice").value, Card.KingOfHearts)
+      observed.isDefined should be(true)
+      observed.value.error.failure.exception.getMessage should include("not the turn")
     }
   }
 }

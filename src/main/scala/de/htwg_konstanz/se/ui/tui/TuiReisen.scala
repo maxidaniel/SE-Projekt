@@ -7,8 +7,6 @@ import de.htwg_konstanz.se.util.Listener
 import org.jline.terminal.Terminal.*
 import org.jline.terminal.{Terminal, TerminalBuilder}
 
-
-
 // This class is going to be updated by a service in the future. Refactor it in such a way, that we call Service.register(Tui),
 // which establishes event handling in the tui, and then call Service.run(), which then handles all game state.
 case class TuiReisen(controller: GameController) extends Listener {

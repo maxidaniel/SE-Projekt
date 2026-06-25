@@ -5,9 +5,23 @@ import de.htwg_konstanz.se.models.GameState._
 import java.util.UUID
 import scala.util.{Failure, Success, Try}
 
-case class Game(playerHands: Map[UUID, Vector[Card]], playedCards: Vector[Card], state: GameState) {
+trait IGame {
+  def join(id: UUID): Try[IGame]
+
+  def quit(id: UUID): Try[IGame]
+
+  def start(): Try[IGame]
+
+  def abort(): Try[IGame]
+
+  def deal(): Try[IGame]
+
+  def playCard(player: IPlayer, card: Card): Try[IGame]
+}
+
+case class Game(playerHands: Map[UUID, Vector[Card]], playedCards: Vector[Card], state: GameState, playerNames: Map[UUID, String] = Map.empty, currentPlayer: Option[UUID] = None) {
   def this() = {
-    this(Map.empty, Vector.empty, state = WaitingForPlayers)
+    this(Map.empty, Vector.empty, WaitingForPlayers, Map.empty, None)
   }
 
   def join(playerId: UUID): Try[Game] = state.transition(this, Join(playerId))
@@ -21,6 +35,12 @@ case class Game(playerHands: Map[UUID, Vector[Card]], playedCards: Vector[Card],
   def deal(): Try[Game] = state.transition(this, Deal)
 
   def playCard(playerId: UUID, card: Card): Try[Game] = state.transition(this, PlayCard(playerId, card))
+
+  def withPlayerName(playerId: UUID, name: String): Game =
+    copy(playerNames = playerNames + (playerId -> name))
+
+  def withoutPlayerName(playerId: UUID): Game =
+    copy(playerNames = playerNames - playerId)
 }
 
 case class Deck(cards: Vector[Card]) {
@@ -49,6 +69,8 @@ object Game {
     CardRank.Ace -> 12,
     CardRank.Two -> 13,
   )
+  
+  def getPower(card: Card): Int = rankPower(card.rank)
 
   def canBeat(current: Card, previous: Card): Boolean = {
     rankPower(current.rank) > rankPower(previous.rank)
