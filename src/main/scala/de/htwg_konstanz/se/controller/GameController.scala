@@ -80,7 +80,7 @@ class GameController(@Inject private var game: Game) extends IController {
     game.playerHands.get(player) match {
       case Some(hand) =>
         game.currentPlayer match {
-          case Some(currentId) if currentId == player.id =>
+          case Some(curPlayer) if curPlayer == player =>
             val lastPlayed = game.playedCards.lastOption
             player.playerType match {
               case Computer(strategy) =>

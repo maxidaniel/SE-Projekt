@@ -1,10 +1,9 @@
 package de.htwg_konstanz.se.controller
 
 import de.htwg_konstanz.se.models.*
-import org.scalatest.matchers.should.Matchers.*
 import org.scalatest.OptionValues.*
+import org.scalatest.matchers.should.Matchers.*
 import org.scalatest.wordspec.AnyWordSpec
-import java.util.UUID
 
 class GameControllerUndoSpec extends AnyWordSpec {
   "A GameController with Undo/Redo" should {
@@ -13,16 +12,13 @@ class GameControllerUndoSpec extends AnyWordSpec {
     "undo joining a player" in {
       controller.join("Alice")
       val p1 = controller.getPlayer("Alice").value
-      controller.getGame.playerHands should contain key p1.id
-      controller.getGame.playerNames should contain key p1.id
-      
+      controller.getGame.playerHands should contain key p1
+
       controller.undo()
-      controller.getGame.playerHands shouldNot contain key p1.id
-      controller.getGame.playerNames shouldNot contain key p1.id
-      
+      controller.getGame.playerHands shouldNot contain key p1
+
       controller.redo()
-      controller.getGame.playerHands should contain key p1.id
-      controller.getGame.playerNames should contain key p1.id
+      controller.getGame.playerHands should contain key p1
     }
 
     "undo starting the game" in {
@@ -45,13 +41,10 @@ class GameControllerUndoSpec extends AnyWordSpec {
       testController.join("Bob")
       testController.start()
       val game = testController.getGame
-      val playerWithCards = game.playerHands.find(_._2.nonEmpty).get
-      val playerId = playerWithCards._1
-      val card = playerWithCards._2.head
-      val p1 = testController.getPlayer("Alice").value
-      val p2 = testController.getPlayer("Bob").value
-      val player = if (playerId == p1.id) p1 else p2
-      
+      val player = game.currentPlayer.value
+      val cards = game.playerHands.get(player)
+      val card = cards.value.head
+
       testController.playCard(player, card)
       testController.getGame.playedCards should contain(card)
       

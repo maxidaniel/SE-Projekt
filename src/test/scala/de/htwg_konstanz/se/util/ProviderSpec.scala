@@ -1,6 +1,6 @@
 package de.htwg_konstanz.se.util
 
-import de.htwg_konstanz.se.models.{GameEvent, PlayerJoinEvent, Player}
+import de.htwg_konstanz.se.models.*
 import org.scalatest.matchers.should.Matchers.*
 import org.scalatest.wordspec.AnyWordSpec
 
@@ -25,12 +25,12 @@ class ProviderSpec extends AnyWordSpec {
 
     "notify all listeners with the same event" in {
       val provider = new TestProvider
-      val event = PlayerJoinEvent(Player(UUID.randomUUID(), "A"), new de.htwg_konstanz.se.models.Game())
+      val event = PlayerJoinEvent(HumanPlayer("Alice"), new Game())
       var seen1: Option[GameEvent] = None
       var seen2: Option[GameEvent] = None
 
-      provider.add(new Listener { override def onEvent(e: GameEvent): Unit = seen1 = Some(e) })
-      provider.add(new Listener { override def onEvent(e: GameEvent): Unit = seen2 = Some(e) })
+      provider.add((e: GameEvent) => seen1 = Some(e))
+      provider.add((e: GameEvent) => seen2 = Some(e))
 
       provider.notifyEvent(event)
 

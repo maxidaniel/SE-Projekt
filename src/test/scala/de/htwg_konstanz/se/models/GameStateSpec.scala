@@ -22,6 +22,9 @@ class GameStateSpec extends AnyWordSpec {
   }
 
   "WaitingForPlayersState" should {
+    val alice = HumanPlayer("Alice")
+    val bob = HumanPlayer("Bob")
+    
     "allow join" in {
       WaitingForPlayersState.canJoin should be(true)
     }
@@ -48,37 +51,31 @@ class GameStateSpec extends AnyWordSpec {
 
     "transition join successfully" in {
       val game = new Game()
-      val playerId = UUID.randomUUID()
-      WaitingForPlayersState.transition(game, Join(playerId)).isSuccess should be(true)
+      WaitingForPlayersState.transition(game, Join(alice)).isSuccess should be(true)
     }
 
     "transition quit successfully" in {
-      val playerId = UUID.randomUUID()
-      val game = new Game().join(playerId).get
-      WaitingForPlayersState.transition(game, Quit(playerId)).isSuccess should be(true)
+      val game = new Game().join(alice).get
+      WaitingForPlayersState.transition(game, Quit(alice)).isSuccess should be(true)
     }
 
     "transition start successfully with 2+ players" in {
-      val p1 = UUID.randomUUID()
-      val p2 = UUID.randomUUID()
-      val game = Game(Map(p1 -> Vector.empty, p2 -> Vector.empty), Vector.empty, WaitingForPlayersState)
+      val game = Game(Map(alice -> Vector.empty, bob -> Vector.empty), Vector.empty, WaitingForPlayersState)
       WaitingForPlayersState.transition(game, Start).isSuccess should be(true)
     }
 
     "transition start fail with fewer than 2 players" in {
-      val game = Game(Map(UUID.randomUUID() -> Vector.empty), Vector.empty, WaitingForPlayersState)
+      val game = Game(Map(HumanPlayer("Alice") -> Vector.empty), Vector.empty, WaitingForPlayersState)
       WaitingForPlayersState.transition(game, Start).isFailure should be(true)
     }
 
     "transition deal successfully with 2+ players" in {
-      val p1 = UUID.randomUUID()
-      val p2 = UUID.randomUUID()
-      val game = Game(Map(p1 -> Vector.empty, p2 -> Vector.empty), Vector.empty, WaitingForPlayersState)
+      val game = Game(Map(alice -> Vector.empty, bob -> Vector.empty), Vector.empty, WaitingForPlayersState)
       WaitingForPlayersState.transition(game, Deal).isSuccess should be(true)
     }
 
     "transition deal fail with fewer than 2 players" in {
-      val game = Game(Map(UUID.randomUUID() -> Vector.empty), Vector.empty, WaitingForPlayersState)
+      val game = Game(Map(alice -> Vector.empty), Vector.empty, WaitingForPlayersState)
       WaitingForPlayersState.transition(game, Deal).isFailure should be(true)
     }
 
@@ -89,7 +86,7 @@ class GameStateSpec extends AnyWordSpec {
 
     "transition playCard fail" in {
       val game = new Game()
-      WaitingForPlayersState.transition(game, PlayCard(UUID.randomUUID(), Card.ThreeOfHearts)).isFailure should be(true)
+      WaitingForPlayersState.transition(game, PlayCard(alice, Card.ThreeOfHearts)).isFailure should be(true)
     }
   }
 
@@ -120,16 +117,18 @@ class GameStateSpec extends AnyWordSpec {
 
     "transition any operation to failure" in {
       val game = new Game()
-      StartingState.transition(game, Join(UUID.randomUUID())).isFailure should be(true)
-      StartingState.transition(game, Quit(UUID.randomUUID())).isFailure should be(true)
+      val alice = HumanPlayer("Alice")
+      StartingState.transition(game, Join(alice)).isFailure should be(true)
+      StartingState.transition(game, Quit(alice)).isFailure should be(true)
       StartingState.transition(game, Start).isFailure should be(true)
       StartingState.transition(game, Abort).isFailure should be(true)
       StartingState.transition(game, Deal).isFailure should be(true)
-      StartingState.transition(game, PlayCard(UUID.randomUUID(), Card.ThreeOfHearts)).isFailure should be(true)
+      StartingState.transition(game, PlayCard(alice, Card.ThreeOfHearts)).isFailure should be(true)
     }
   }
 
   "PlayingState" should {
+    val alice = HumanPlayer("Alice")
     "not allow join" in {
       PlayingState.canJoin should be(false)
     }
@@ -156,12 +155,12 @@ class GameStateSpec extends AnyWordSpec {
 
     "transition join fail" in {
       val game = Game(Map.empty, Vector.empty, PlayingState)
-      PlayingState.transition(game, Join(UUID.randomUUID())).isFailure should be(true)
+      PlayingState.transition(game, Join(alice)).isFailure should be(true)
     }
 
     "transition quit fail" in {
       val game = Game(Map.empty, Vector.empty, PlayingState)
-      PlayingState.transition(game, Quit(UUID.randomUUID())).isFailure should be(true)
+      PlayingState.transition(game, Quit(alice)).isFailure should be(true)
     }
 
     "transition start fail" in {
@@ -180,54 +179,49 @@ class GameStateSpec extends AnyWordSpec {
     }
 
     "transition playCard with unknown card fail" in {
-      val playerId = UUID.randomUUID()
-      val game = Game(Map(playerId -> Vector(Card.ThreeOfHearts)), Vector.empty, PlayingState)
-      PlayingState.transition(game, PlayCard(playerId, Card.Unknown)).isFailure should be(true)
+      val game = Game(Map(alice -> Vector(Card.ThreeOfHearts)), Vector.empty, PlayingState)
+      PlayingState.transition(game, PlayCard(alice, Card.Unknown)).isFailure should be(true)
     }
 
     "transition playCard with non-existent player fail" in {
-      val game = Game(Map(UUID.randomUUID() -> Vector(Card.ThreeOfHearts)), Vector.empty, PlayingState)
-      PlayingState.transition(game, PlayCard(UUID.randomUUID(), Card.ThreeOfHearts)).isFailure should be(true)
+      val game = Game(Map(alice -> Vector(Card.ThreeOfHearts)), Vector.empty, PlayingState)
+      PlayingState.transition(game, PlayCard(alice, Card.ThreeOfHearts)).isFailure should be(true)
     }
 
     "transition playCard with card not in hand fail" in {
-      val playerId = UUID.randomUUID()
-      val game = Game(Map(playerId -> Vector(Card.KingOfHearts)), Vector.empty, PlayingState)
-      PlayingState.transition(game, PlayCard(playerId, Card.ThreeOfHearts)).isFailure should be(true)
+      val game = Game(Map(alice -> Vector(Card.KingOfHearts)), Vector.empty, PlayingState)
+      PlayingState.transition(game, PlayCard(alice, Card.ThreeOfHearts)).isFailure should be(true)
     }
 
     "transition playCard with card that cannot beat previous fail" in {
-      val playerId = UUID.randomUUID()
       val game = Game(
-        Map(playerId -> Vector(Card.ThreeOfHearts)),
+        Map(alice -> Vector(Card.ThreeOfHearts)),
         Vector(Card.KingOfHearts),
         PlayingState,
-        Map.empty,
-        Some(playerId),
+        Some(alice),
         1,
         Some(CardRank.King),
-        Some(playerId)
+        Some(alice)
       )
-      PlayingState.transition(game, PlayCard(playerId, Card.ThreeOfHearts)).isFailure should be(true)
+      PlayingState.transition(game, PlayCard(alice, Card.ThreeOfHearts)).isFailure should be(true)
     }
 
     "transition playCard successfully" in {
-      val playerId = UUID.randomUUID()
       val game = Game(
-        Map(playerId -> Vector(Card.AceOfSpades)),
+        Map(alice -> Vector(Card.AceOfSpades)),
         Vector(Card.AceOfClubs),
         PlayingState,
-        Map.empty,
-        Some(playerId),
+        Some(alice),
         1,
         Some(CardRank.Ace),
-        Some(playerId)
+        Some(alice)
       )
-      PlayingState.transition(game, PlayCard(playerId, Card.AceOfSpades)).isSuccess should be(true)
+      PlayingState.transition(game, PlayCard(alice, Card.AceOfSpades)).isSuccess should be(true)
     }
   }
 
   "AbortedState" should {
+    val alice = HumanPlayer("Alice")
     "not allow join" in {
       AbortedState.canJoin should be(false)
     }
@@ -254,16 +248,17 @@ class GameStateSpec extends AnyWordSpec {
 
     "transition any operation to failure" in {
       val game = Game(Map.empty, Vector.empty, AbortedState)
-      AbortedState.transition(game, Join(UUID.randomUUID())).isFailure should be(true)
-      AbortedState.transition(game, Quit(UUID.randomUUID())).isFailure should be(true)
+      AbortedState.transition(game, Join(alice)).isFailure should be(true)
+      AbortedState.transition(game, Quit(alice)).isFailure should be(true)
       AbortedState.transition(game, Start).isFailure should be(true)
       AbortedState.transition(game, Abort).isFailure should be(true)
       AbortedState.transition(game, Deal).isFailure should be(true)
-      AbortedState.transition(game, PlayCard(UUID.randomUUID(), Card.ThreeOfHearts)).isFailure should be(true)
+      AbortedState.transition(game, PlayCard(alice, Card.ThreeOfHearts)).isFailure should be(true)
     }
   }
 
   "EndedState" should {
+    val alice = HumanPlayer("Alice")
     "not allow join" in {
       EndedState.canJoin should be(false)
     }
@@ -290,12 +285,12 @@ class GameStateSpec extends AnyWordSpec {
 
     "transition any operation to failure" in {
       val game = Game(Map.empty, Vector.empty, EndedState)
-      EndedState.transition(game, Join(UUID.randomUUID())).isFailure should be(true)
-      EndedState.transition(game, Quit(UUID.randomUUID())).isFailure should be(true)
+      EndedState.transition(game, Join(alice)).isFailure should be(true)
+      EndedState.transition(game, Quit(alice)).isFailure should be(true)
       EndedState.transition(game, Start).isFailure should be(true)
       EndedState.transition(game, Abort).isFailure should be(true)
       EndedState.transition(game, Deal).isFailure should be(true)
-      EndedState.transition(game, PlayCard(UUID.randomUUID(), Card.ThreeOfHearts)).isFailure should be(true)
+      EndedState.transition(game, PlayCard(alice, Card.ThreeOfHearts)).isFailure should be(true)
     }
   }
 }

@@ -7,21 +7,23 @@ import org.scalatest.TryValues.*
 import org.scalatest.matchers.should.Matchers.*
 import org.scalatest.wordspec.AnyWordSpec
 
-import java.util.UUID
-
 class GameSpec extends AnyWordSpec {
-  private def makeGame(playerHands: Map[UUID, Vector[Card]], playedCards: Vector[Card] = Vector.empty, state: GameState = Playing, playerNames: Map[UUID, String] = Map.empty, currentPlayer: Option[UUID] = None, trickCount: Int = 0, trickRank: Option[CardRank] = None, trickLeader: Option[UUID] = None): Game = {
-    Game(playerHands, playedCards, state, playerNames, currentPlayer, trickCount, trickRank, trickLeader)
+  private def makeGame(playerHands: Map[IPlayer, Vector[Card]], playedCards: Vector[Card] = Vector.empty, state: GameState = Playing, currentPlayer: Option[IPlayer] = None, trickCount: Int = 0, trickRank: Option[CardRank] = None, trickLeader: Option[IPlayer] = None): Game = {
+    Game(playerHands, playedCards, state, currentPlayer, trickCount, trickRank, trickLeader)
   }
 
-  private def makePlayingGame(playerHands: Map[UUID, Vector[Card]], trickRank: CardRank, trickLeader: UUID, currentPlayer: UUID = null, playedCards: Vector[Card] = Vector.empty): Game = {
+  private def makePlayingGame(playerHands: Map[IPlayer, Vector[Card]], trickRank: CardRank, trickLeader: IPlayer, currentPlayer: IPlayer = null, playedCards: Vector[Card] = Vector.empty): Game = {
     val cp = if (currentPlayer != null) currentPlayer else trickLeader
-    Game(playerHands, playedCards, PlayingState, Map.empty, Some(cp), 1, Some(trickRank), Some(trickLeader))
+    Game(playerHands, playedCards, PlayingState, Some(cp), 1, Some(trickRank), Some(trickLeader))
   }
 
   private def makeController(game: Game): GameController = new GameController(game)
 
   "A game" should {
+    val alice = HumanPlayer("Alice")
+    val bob = HumanPlayer("Bob")
+    val charlie = HumanPlayer("Charlie")
+
     "be empty by default" in {
       val game = new Game()
       game.playerHands should be(Map.empty)
@@ -31,50 +33,43 @@ class GameSpec extends AnyWordSpec {
 
     "add a player on join" in {
       val game = new Game()
-      val playerId = UUID.randomUUID()
 
-      val result = game.join(playerId).success.value
-      
-      result.playerHands.keySet should contain(playerId)
-      result.playerHands(playerId) should be(Vector.empty)
+      val result = game.join(alice).success.value
+
+      result.playerHands.keySet should contain(alice)
+      result.playerHands(alice) should be(Vector.empty)
     }
 
     "remove a player on leave" in {
-      val playerId = UUID.randomUUID()
-      val game = new Game().join(playerId).get
+      val game = new Game().join(alice).get
 
-      val result = game.quit(playerId)
+      val result = game.quit(alice)
       result.isSuccess should be(true)
       result.isFailure should be(false)
 
       val afterLeave = result.get
-      afterLeave.playerHands.keySet should not contain playerId
+      afterLeave.playerHands.keySet should not contain alice
     }
 
     "not join a player that is already part of the game" in {
-      val p1 = UUID.randomUUID()
-      val game = new Game().join(p1).success.value
-      game.join(p1).isFailure should be(true)
+      val game = new Game().join(alice).success.value
+      game.join(alice).isFailure should be(true)
     }
 
     "not quit a player that is not part of the game" in {
-      val p1 = UUID.randomUUID()
       val game = new Game()
-      game.quit(p1).isFailure should be(true)
+      game.quit(alice).isFailure should be(true)
     }
 
     "not quit a player when the game is running" in {
-      val p1 = UUID.randomUUID()
-      val p2 = UUID.randomUUID()
-      val game = Game(Map(p1 -> Vector.empty, p2 -> Vector.empty), Vector.empty, Playing)
-      game.quit(p1).isFailure should be(true)
+      val game = Game(Map(alice -> Vector.empty, bob -> Vector.empty), Vector.empty, Playing)
+      game.quit(alice).isFailure should be(true)
     }
 
     "not add a player on join when playing" in {
       val game = new Game().copy(state = Playing)
-      val playerId = UUID.randomUUID()
 
-      val result = game.join(playerId)
+      val result = game.join(alice)
       result.isSuccess should be(false)
       result.isFailure should be(true)
 
@@ -83,9 +78,7 @@ class GameSpec extends AnyWordSpec {
     }
 
     "start when waiting and at least two players exist" in {
-      val p1 = UUID.randomUUID()
-      val p2 = UUID.randomUUID()
-      val game = Game(Map(p1 -> Vector.empty, p2 -> Vector.empty), Vector.empty, GameState.WaitingForPlayers)
+      val game = Game(Map(alice -> Vector.empty, bob -> Vector.empty), Vector.empty, GameState.WaitingForPlayers)
 
       val started = game.start().success.value
       started.state should be(Playing)
@@ -93,8 +86,7 @@ class GameSpec extends AnyWordSpec {
     }
 
     "not start when fewer than two players exist" in {
-      val p1 = UUID.randomUUID()
-      val game = Game(Map(p1 -> Vector.empty), Vector.empty, GameState.WaitingForPlayers)
+      val game = Game(Map(alice -> Vector.empty), Vector.empty, GameState.WaitingForPlayers)
       game.start().failure.exception should have message "Can only start a new game with two or more players."
     }
 
@@ -104,11 +96,8 @@ class GameSpec extends AnyWordSpec {
     }
 
     "deal cards as evenly as possible" in {
-      val p1 = UUID.randomUUID()
-      val p2 = UUID.randomUUID()
-      val p3 = UUID.randomUUID()
       val game = Game(
-        Map(p1 -> Vector.empty, p2 -> Vector.empty, p3 -> Vector.empty),
+        Map(alice -> Vector.empty, bob -> Vector.empty, charlie -> Vector.empty),
         Vector.empty,
         GameState.WaitingForPlayers,
       )
@@ -121,105 +110,91 @@ class GameSpec extends AnyWordSpec {
     }
 
     "not deal cards in playing state" in {
-      val p1 = UUID.randomUUID()
-      val p2 = UUID.randomUUID()
-      val game = Game(Map(p1 -> Vector.empty, p2 -> Vector.empty), Vector.empty, Playing)
+      val game = Game(Map(alice -> Vector.empty, bob -> Vector.empty), Vector.empty, Playing)
 
       game.deal().failure.exception should have message "Can only deal cards before the game starts."
     }
 
     "allow a player to play a valid first card" in {
-      val p1 = UUID.randomUUID()
-      val p2 = UUID.randomUUID()
       val playedCard = Card.ThreeOfHearts
       val game = Game(
         Map(
-          p1 -> Vector(playedCard, Card.KingOfHearts),
-          p2 -> Vector(Card.FiveOfClubs),
+          alice -> Vector(playedCard, Card.KingOfHearts),
+          bob -> Vector(Card.FiveOfClubs),
         ),
         Vector.empty,
         Playing,
+        currentPlayer = Some(alice)
       )
 
-      val afterPlay = game.playCard(p1, playedCard).success.value
+      val afterPlay = game.playCard(alice, playedCard).success.value
 
       afterPlay.playedCards.last should be(playedCard)
-      afterPlay.playerHands(p1) should contain(Card.KingOfHearts)
-      afterPlay.playerHands(p1) should not contain playedCard
+      afterPlay.playerHands(alice) should contain(Card.KingOfHearts)
+      afterPlay.playerHands(alice) should not contain playedCard
     }
 
     "reject a played card with wrong rank" in {
-      val p1 = UUID.randomUUID()
-      val p2 = UUID.randomUUID()
       val game = makePlayingGame(
-        Map(p1 -> Vector(Card.FiveOfHearts), p2 -> Vector(Card.TenOfClubs)),
+        Map(alice -> Vector(Card.FiveOfHearts), bob -> Vector(Card.TenOfClubs)),
         CardRank.Ten,
-        p1,
+        alice,
         playedCards = Vector(Card.TenOfHearts)
       )
 
-      game.playCard(p1, Card.FiveOfHearts).failure.exception should have message "Must play cards of rank Ten, not Five."
+      game.playCard(alice, Card.FiveOfHearts).failure.exception should have message "Must play cards of rank Ten, not Five."
     }
 
     "end the game when a player plays the last card in hand" in {
-      val p1 = UUID.randomUUID()
-      val p2 = UUID.randomUUID()
       val winningCard = Card.AceOfSpades
       val game = Game(
-        Map(p1 -> Vector(winningCard), p2 -> Vector(Card.KingOfHearts)),
+        Map(alice -> Vector(winningCard), bob -> Vector(Card.KingOfHearts)),
         Vector.empty,
         PlayingState,
-        Map.empty,
-        Some(p1),
+        Some(alice),
         0,
         None,
         None
       )
 
-      val ended = game.playCard(p1, winningCard).success.value
+      val ended = game.playCard(alice, winningCard).success.value
       ended.state should be(Ended)
-      ended.playerHands(p1) should be(Vector.empty)
+      ended.playerHands(alice) should be(Vector.empty)
     }
 
     "reject playing a card that the player does not have" in {
-      val p1 = UUID.randomUUID()
-      val p2 = UUID.randomUUID()
       val game = Game(
         Map(
-          p1 -> Vector(Card.FourOfHearts),
-          p2 -> Vector(Card.QueenOfClubs),
+          alice -> Vector(Card.FourOfHearts),
+          bob -> Vector(Card.QueenOfClubs),
         ),
         Vector.empty,
         Playing,
       )
 
-      game.playCard(p1, Card.AceOfClubs).failure.exception.getMessage should include("does not have card")
+      game.playCard(alice, Card.AceOfClubs).failure.exception.getMessage should include("does not have card")
     }
 
     "reject playing an unknown card" in {
-      val p1 = UUID.randomUUID()
       val game = Game(
-        Map(p1 -> Vector(Card.FourOfHearts)),
+        Map(alice -> Vector(Card.FourOfHearts)),
         Vector.empty,
         Playing,
       )
-      game.playCard(p1, Card.Unknown).isFailure should be(true)
+      game.playCard(alice, Card.Unknown).isFailure should be(true)
     }
 
     "reject playing a card when player is not in the game" in {
-      val p1 = UUID.randomUUID()
-      val p2 = UUID.randomUUID()
       val game = Game(
-        Map(p1 -> Vector(Card.FourOfHearts)),
+        Map(alice -> Vector(Card.FourOfHearts)),
         Vector.empty,
         Playing,
       )
-      game.playCard(p2, Card.FiveOfHearts).failure.exception.getMessage should include(p2.toString)
+      game.playCard(bob, Card.FiveOfHearts).failure.exception.getMessage should include(bob.id.toString)
     }
 
     "not deal cards when fewer than two players" in {
-      val p1 = UUID.randomUUID()
-      val game = Game(Map(p1 -> Vector.empty), Vector.empty, GameState.WaitingForPlayers)
+      val game = Game(Map(alice -> Vector.empty), Vector.empty, GameState.WaitingForPlayers)
       game.deal().failure.exception should have message "Can only deal cards when two or more players are in the game."
     }
   }

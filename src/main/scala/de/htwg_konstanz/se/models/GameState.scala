@@ -61,14 +61,14 @@ case object WaitingForPlayersState extends GameState {
   private def dealCards(game: Game): Try[Game] = {
     val shuffledCards = DeckFactory.shuffledStandardDeck().cards
     val players = game.playerHands.keys.toVector
-    val emptyHands = players.map(player => player -> Vector.empty[Card]).toMap
 
-    val dealtHands = shuffledCards.zipWithIndex.foldLeft(emptyHands) { case (hands, (card, index)) =>
+    val dealtHands = shuffledCards.zipWithIndex.foldLeft(game.playerHands) { case (hands, (card, index)) =>
       val player = players(index % players.size)
       hands.updated(player, hands(player) :+ card)
     }
 
-    Success(game.copy(playerHands = dealtHands, playedCards = Vector.empty))
+    val first = dealtHands.find((p, hand) => hand.exists(c => c.rank == Card.ThreeOfClubs.rank && c.suit == Card.ThreeOfClubs.suit)).map(p => p._1)
+    Success(game.copy(playerHands = dealtHands, playedCards = Vector.empty, currentPlayer = first))
   }
 }
 
@@ -124,8 +124,7 @@ case object PlayingState extends GameState {
     game.playerHands.get(player) match {
       case None => Failure(Exception(s"The player with id ${player.id} is not part of the game."))
       case Some(hand) if !hand.contains(card) => Failure(Exception(s"Player ${player.id} does not have card $card in hand."))
-      case Some(hand) if game.currentPlayer.contains(player) =>
-        Failure(Exception("It is not the player's turn - not the turn."))
+      case Some(hand) if !game.currentPlayer.contains(player) => Failure(Exception("It is not this players' turn."))
       case _ =>
         if (game.trickCount == 0 && game.playedCards.isEmpty) {
           leadTrick(game, player, card)

@@ -6,74 +6,37 @@ import org.scalatest.wordspec.AnyWordSpec
 import java.util.UUID
 
 class GameFactorySpec extends AnyWordSpec {
-  "GameFactory.create" should {
-    "create a game with the correct number of players" in {
-      val game = GameFactory.create(Seq("Alice", "Bob", "Charlie"))
-      game.playerHands.size should be(3)
+  "A GameFactory" should {
+    "create a game with Alice and Bob" should {
+      val game = GameFactory.create(Seq(HumanPlayer("Alice"), HumanPlayer("Bob")))
+      game should not be null
+
+      "and have size 2" in {
+        game.playerHands.size should be(2)
+      }
+
+      "and should have state WaitingForPlayers" in {
+        game.state should be(GameState.WaitingForPlayers)
+      }
+
+      "and create a game with empty hands" in {
+        game.playerHands.values.foreach(_.size should be(0))
+      }
+
+      "and have no played cards" in {
+        game.playedCards should be(empty)
+      }
+
+      "and have unique player ids" in {
+        val alice = game.playerHands.keySet.toSeq.head
+        val bob = game.playerHands.keySet.toSeq(1)
+        alice.id should not be equal(bob.id)
+      }
     }
 
-    "create a game in WaitingForPlayers state" in {
-      val game = GameFactory.create(Seq("Alice", "Bob"))
-      game.state should be(GameState.WaitingForPlayers)
-    }
-
-    "create a game with empty hands" in {
-      val game = GameFactory.create(Seq("Alice", "Bob"))
-      game.playerHands.values.foreach(_.size should be(0))
-    }
-
-    "create a game with empty played cards" in {
-      val game = GameFactory.create(Seq("Alice", "Bob"))
-      game.playedCards should be(Vector.empty)
-    }
-
-    "create a game with unique player ids" in {
-      val game = GameFactory.create(Seq("Alice", "Bob"))
-      game.playerHands.keySet.size should be(2)
-    }
-
-    "create a game with no players given empty seq" in {
+    "create a game without any players given empty Seq" in {
       val game = GameFactory.create(Seq.empty)
-      game.playerHands should be(Map.empty)
-    }
-
-    "preserve given player ids when using map overload" in {
-      val aliceId = UUID.fromString("11111111-1111-1111-1111-111111111111")
-      val bobId = UUID.fromString("22222222-2222-2222-2222-222222222222")
-      val game = GameFactory.create(Map("Alice" -> aliceId, "Bob" -> bobId))
-      game.playerHands.keySet should contain(aliceId)
-      game.playerHands.keySet should contain(bobId)
-      game.playerHands.size should be(2)
-      game.playerNames(aliceId) should be("Alice")
-      game.playerNames(bobId) should be("Bob")
-    }
-  }
-
-  "GameFactory.createWithDeals" should {
-    "create a game with dealt cards" in {
-      val game = GameFactory.createWithDeals(Seq("Alice", "Bob"))
-      game.playerHands.values.map(_.size).sum should be(Card.standardDeckCards.size)
-    }
-
-    "create a game in Playing state after dealing" in {
-      val game = GameFactory.createWithDeals(Seq("Alice", "Bob"))
-      game.state should be(GameState.Playing)
-    }
-
-    "deal cards evenly among players" in {
-      val game = GameFactory.createWithDeals(Seq("Alice", "Bob", "Charlie"))
-      val handSizes = game.playerHands.values.map(_.size).toVector
-      handSizes.max - handSizes.min should be <= 1
-    }
-
-    "create a game with empty played cards" in {
-      val game = GameFactory.createWithDeals(Seq("Alice", "Bob"))
-      game.playedCards should be(Vector.empty)
-    }
-
-    "create a game with all standard cards" in {
-      val game = GameFactory.createWithDeals(Seq("Alice", "Bob"))
-      game.playerHands.values.flatten.toSet should be(Card.standardDeckCards.toSet)
+      game.playerHands should be(empty)
     }
   }
 
