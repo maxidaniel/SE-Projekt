@@ -1,30 +1,20 @@
 package de.htwg_konstanz.se.models
 
 import de.htwg_konstanz.se.controller.strategies.IStrategy
+import de.htwg_konstanz.se.models.PlayerType.{Computer, Human, Unknown}
+
 import java.util.UUID
 
-sealed trait IPlayer {
-  def name: String
+enum PlayerType(val strategy: Option[IStrategy]) {
+  case Human extends PlayerType(None)
+  case Computer(theStrategy: IStrategy) extends PlayerType(Some(theStrategy))
+  case Unknown extends PlayerType(None)
 }
 
-case object HumanPlayer extends IPlayer {
-  override val name: String = "Human"
-}
+sealed trait IPlayer(val name: String, val playerType: PlayerType, val id: UUID = UUID.randomUUID)
 
-case object ComputerPlayer extends IPlayer {
-  override val name: String = "Computer"
-}
+case class HumanPlayer(myName: String) extends IPlayer(myName, Human)
+case class ComputerPlayer(myName: String, strategy: IStrategy) extends IPlayer(myName, Computer(strategy))
+case class UnknownPlayer() extends IPlayer("Unknown", Unknown)
 
-case class Player(id: UUID, name: String, playerType: IPlayer = HumanPlayer, strategy: Option[IStrategy] = None) {
-  def this(name: String) = {
-    this(UUID.randomUUID(), name, HumanPlayer, None)
-  }
-
-  def this(name: String, playerType: IPlayer) = {
-    this(UUID.randomUUID(), name, playerType, None)
-  }
-
-  def this(name: String, playerType: IPlayer, strategy: IStrategy) = {
-    this(UUID.randomUUID(), name, playerType, Some(strategy))
-  }
-}
+// TODO: Do runtime-exchangeable components implementation!!! (FileIO)

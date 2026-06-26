@@ -55,8 +55,8 @@ case class TuiReisen @Inject() (controller: IController) extends Listener {
     keyMap.bind("quit", "q")
     keyMap.bind("start", "\n")
     keyMap.bind("start", "\r")
-    keyMap.bind("add", "+")
-    keyMap.bind("scale-down", "-")
+    keyMap.bind("plus", "+")
+    keyMap.bind("minus", "-")
     keyMap.bind("undo", "z")
     keyMap.bind("undo", "Z")
     keyMap.bind("redo", "y")
@@ -86,9 +86,9 @@ case class TuiReisen @Inject() (controller: IController) extends Listener {
           if controller.getGameState == Aborted then controller.reset()
           controller.start()
 
-        case "add" => handlePlus(controller.getGame)
+        case "plus" => handlePlus()
 
-        case "scale-down" => handleMinus(controller.getGame)
+        case "minus" => handleMinus()
 
         case "undo" => controller.undo()
 
@@ -127,20 +127,22 @@ case class TuiReisen @Inject() (controller: IController) extends Listener {
     }
   }
 
-  private[tui] def handlePlus(game: Game): Unit = {
-    game.state match {
+  private[tui] def handlePlus(): Unit = {
+    controller.getGame.state match {
       case Playing =>
         renderScale = math.min(3, renderScale + 1)
+        renderer.windowSizeChanged()
       case WaitingForPlayers =>
         controller.join("")
       case _ =>
     }
   }
 
-  private[tui] def handleMinus(game: Game): Unit = {
-    game.state match {
+  private[tui] def handleMinus(): Unit = {
+    controller.getGame.state match {
       case Playing =>
         renderScale = math.max(1, renderScale - 1)
+        renderer.windowSizeChanged()
       case _ =>
     }
   }
@@ -149,12 +151,7 @@ case class TuiReisen @Inject() (controller: IController) extends Listener {
     game.state match {
       case Playing =>
         game.currentPlayer match {
-          case Some(currentId) =>
-            controller.getPlayer(currentId) match {
-              case Some(player) =>
-                controller.playCardByIndex(player, index)
-              case None =>
-            }
+          case Some(currentPlayer) => controller.playCard(currentPlayer, index)
           case None =>
         }
       case _ =>
@@ -165,12 +162,7 @@ case class TuiReisen @Inject() (controller: IController) extends Listener {
     game.state match {
       case Playing =>
         game.currentPlayer match {
-          case Some(currentId) =>
-            controller.getPlayer(currentId) match {
-              case Some(player) =>
-                controller.playCardByComputer(player)
-              case None =>
-            }
+          case Some(currentPlayer) => controller.playCard(currentPlayer)
           case None =>
         }
       case _ =>
@@ -181,12 +173,7 @@ case class TuiReisen @Inject() (controller: IController) extends Listener {
     game.state match {
       case Playing =>
         game.currentPlayer match {
-          case Some(currentId) =>
-            controller.getPlayer(currentId) match {
-              case Some(player) =>
-                controller.passTrick(player)
-              case None =>
-            }
+          case Some(currentPlayer) => controller.passTrick(currentPlayer)
           case None =>
         }
       case _ =>
@@ -198,7 +185,7 @@ case class TuiReisen @Inject() (controller: IController) extends Listener {
 
     game.state match {
       case WaitingForPlayers =>
-        val playerIds = game.playerHands.keys.toVector.sorted
+        val playerIds = game.playerHands.keys.toVector.sortBy(p => p.name)
 
         (
           TuiView.MainMenu,
@@ -210,7 +197,7 @@ case class TuiReisen @Inject() (controller: IController) extends Listener {
         )
 
       case Aborted =>
-        val playerIds = game.playerHands.keys.toVector.sorted
+        val playerIds = game.playerHands.keys.toVector.sortBy(p => p.name)
 
         (
           TuiView.MainMenu,
@@ -223,8 +210,6 @@ case class TuiReisen @Inject() (controller: IController) extends Listener {
 
       case Playing =>
         val active = activeCards(game)
-        val currentPlayerId = game.currentPlayer
-        val currentPlayerName = currentPlayerId.flatMap(id => game.playerNames.get(id))
 
         val cardRender = CardRenderer.render(
           cards = active,
@@ -236,8 +221,8 @@ case class TuiReisen @Inject() (controller: IController) extends Listener {
         val cardsX = math.max(0, (terminal.getColumns - cardsWidth) / 2)
         val cardsY = math.max(6, terminal.getRows - cardRender.lines.length - 1)
 
-        val turnInfo = currentPlayerName match {
-          case Some(name) => Vector(s"Current turn: $name")
+        val turnInfo = game.currentPlayer match {
+          case Some(player) => Vector(s"Current turn: ${player.name}")
           case None => Vector("Current turn: ?")
         }
 
@@ -288,15 +273,15 @@ case class TuiReisen @Inject() (controller: IController) extends Listener {
           RenderObj.Right(panelX + cardsWidth + 1, 3, Vector("None"), width = Some(namesWidth))
         )
       else
-        game.playerHands.toVector.sortBy(_._1.toString).zipWithIndex.flatMap { case ((id, cards), index) =>
+        game.playerHands.toVector.sortBy(_._1.toString).zipWithIndex.flatMap { case ((player, cards), index) =>
           val y = 3 + index
           val cardsText =
             if cards.isEmpty then "-"
             else cards.zipWithIndex.map { case (card, cardIndex) =>
-              val marker = if (game.currentPlayer.contains(id)) "*" else " "
+              val marker = if (game.currentPlayer.contains(player)) "*" else " "
               s"[$cardIndex:$marker]${card.toString}"
             }.mkString(" ")
-          val playerName = s"${game.playerNames.get(id).getOrElse("Player")} ${id.toString.take(8)}"
+          val playerName = s"${player.name} ${player.toString.take(8)}"
 
           Vector(
             RenderObj.Left(panelX, y, Vector(cardsText), width = Some(cardsWidth)),

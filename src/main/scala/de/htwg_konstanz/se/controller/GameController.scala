@@ -1,23 +1,24 @@
 package de.htwg_konstanz.se.controller
 
+import com.google.inject.{Inject, Singleton}
 import de.htwg_konstanz.se.models.*
-import de.htwg_konstanz.se.util.{Command, Listener, Provider, UndoManager}
+import de.htwg_konstanz.se.models.PlayerType.Computer
+import de.htwg_konstanz.se.util.{Command, Provider, UndoManager}
 
 import java.util.UUID
 import scala.compiletime.uninitialized
 import scala.util.{Failure, Success}
-import com.google.inject.{Inject, Singleton}
 
 trait IController extends Provider {
   def join(name: String): Unit
   def quit(uuid: UUID): Unit
   def start(): Unit
-  def playCard(player: Player, card: Card): Unit
-  def playCardByIndex(player: Player, index: Int): Unit
-  def playCardByComputer(player: Player): Unit
-  def passTrick(player: Player): Unit
-  def getPlayer(name: String): Option[Player]
-  def getPlayer(uuid: UUID): Option[Player]
+  
+  def playCard(player: IPlayer): Unit
+  def playCard(player: IPlayer, card: Card): Unit
+  def playCard(player: IPlayer, index: Int): Unit
+  
+  def passTrick(player: IPlayer): Unit
   def abort(): Unit
   def undo(): Unit
   def redo(): Unit
@@ -25,10 +26,15 @@ trait IController extends Provider {
   def exit(): Unit
   def getGame: Game
   def getGameState: GameState
+
+  def getPlayer(name: String): Option[IPlayer]
+  def getPlayer(uuid: UUID): Option[IPlayer]
+  def players: Seq[IPlayer]
+  def playerCount: Int
 }
 
 @Singleton
-class GameController(@Inject private var game: Game) extends IController, Provider {
+class GameController(@Inject private var game: Game) extends IController {
   private var undoManager = UndoManager()
 
   def this() = {
@@ -36,14 +42,14 @@ class GameController(@Inject private var game: Game) extends IController, Provid
   }
 
   def join(name: String): Unit = {
-    val player = new Player(name)
+    val player = HumanPlayer(name)
     undoManager = undoManager.doStep(new JoinCommand(game, player))
   }
 
   def quit(uuid: UUID): Unit = {
     val player = getPlayer(uuid)
     if player.isEmpty then {
-      notifyEvent(GameErrorEvent(PlayerQuitEvent(Player(uuid, "Unknown"), game), Failure(new Exception(s"The player with id $uuid is not part of the game."))))
+      notifyEvent(GameErrorEvent(PlayerQuitEvent(UnknownPlayer(), game), Failure(new Exception(s"The player with id $uuid is not part of the game."))))
     } else {
       undoManager = undoManager.doStep(new QuitCommand(game, player.get))
     }
@@ -53,12 +59,12 @@ class GameController(@Inject private var game: Game) extends IController, Provid
     undoManager = undoManager.doStep(new StartCommand(game))
   }
 
-  def playCard(player: Player, card: Card): Unit = {
+  def playCard(player: IPlayer, card: Card): Unit = {
     undoManager = undoManager.doStep(new PlayCardCommand(game, player, card))
   }
 
-  def playCardByIndex(player: Player, index: Int): Unit = {
-    game.playerHands.get(player.id) match {
+  def playCard(player: IPlayer, index: Int): Unit = {
+    game.playerHands.get(player) match {
       case Some(hand) if index >= 0 && index < hand.size =>
         val card = hand(index)
         playCard(player, card)
@@ -70,20 +76,20 @@ class GameController(@Inject private var game: Game) extends IController, Provid
     }
   }
 
-  def playCardByComputer(player: Player): Unit = {
-    game.playerHands.get(player.id) match {
+  def playCard(player: IPlayer): Unit = {
+    game.playerHands.get(player) match {
       case Some(hand) =>
         game.currentPlayer match {
           case Some(currentId) if currentId == player.id =>
-            val lastPlayed = if (game.playedCards.isEmpty) None else Some(game.playedCards.last)
-            player.strategy match {
-              case Some(strategy) =>
+            val lastPlayed = game.playedCards.lastOption
+            player.playerType match {
+              case Computer(strategy) =>
                 val card = strategy.play(hand, lastPlayed.getOrElse(Card.ThreeOfHearts))
                 playCard(player, card)
-              case None =>
+              case _ =>
                 notifyEvent(GameErrorEvent(
                   CardPlayedEvent(player, Card.Unknown, game),
-                  Failure(new Exception("Computer player has no strategy configured"))
+                  Failure(new Exception("Only computer players can use playCard(IPlayer)"))
                 ))
             }
           case _ =>
@@ -100,8 +106,8 @@ class GameController(@Inject private var game: Game) extends IController, Provid
     }
   }
 
-  def passTrick(player: Player): Unit = {
-    game.passTrick(player.id) match {
+  def passTrick(player: IPlayer): Unit = {
+    game.passTrick(player) match {
       case Success(g) =>
         game = g
         notifyEvent(GameChangedEvent(game))
@@ -113,12 +119,12 @@ class GameController(@Inject private var game: Game) extends IController, Provid
     }
   }
 
-  def getPlayer(name: String): Option[Player] = {
-    game.playerNames.find { case (_, n) => n == name }.map { case (id, _) => Player(id, name) }
+  def getPlayer(name: String): Option[IPlayer] = {
+    game.playerHands.keySet.find { p => p.name == name }
   }
 
-  def getPlayer(uuid: UUID): Option[Player] = {
-    game.playerNames.get(uuid).map(name => Player(uuid, name))
+  def getPlayer(uuid: UUID): Option[IPlayer] = {
+    game.playerHands.keySet.find { p => p.id == uuid }
   }
 
   def abort(): Unit = {
@@ -140,18 +146,17 @@ class GameController(@Inject private var game: Game) extends IController, Provid
     notifyEvent(GameChangedEvent(game))
   }
 
-  private class JoinCommand(gameRef: Game, player: Player) extends Command {
+  private class JoinCommand(gameRef: Game, player: IPlayer) extends Command {
     private var oldGame: Game = uninitialized
     private var newGame: Game = uninitialized
 
     override def doStep(): Unit = {
       oldGame = game
-      game.join(player.id) match {
+      game.join(player) match {
         case Success(g) =>
-          val gWithNames = g.withPlayerName(player.id, player.name)
-          game = gWithNames
-          newGame = gWithNames
-          notifyEvent(PlayerJoinEvent(player, gWithNames))
+          game = g
+          newGame = g
+          notifyEvent(PlayerJoinEvent(player, g))
         case Failure(f) =>
           notifyEvent(GameErrorEvent(PlayerJoinEvent(player, game), Failure(f)))
       }
@@ -168,18 +173,17 @@ class GameController(@Inject private var game: Game) extends IController, Provid
     }
   }
 
-  private class QuitCommand(gameRef: Game, player: Player) extends Command {
+  private class QuitCommand(gameRef: Game, player: IPlayer) extends Command {
     private var oldGame: Game = uninitialized
     private var newGame: Game = uninitialized
 
     override def doStep(): Unit = {
       oldGame = game
-      game.quit(player.id) match {
+      game.quit(player) match {
         case Success(g) =>
-          val gWithoutName = g.withoutPlayerName(player.id)
-          game = gWithoutName
-          newGame = gWithoutName
-          notifyEvent(PlayerQuitEvent(player, gWithoutName))
+          game = g
+          newGame = g
+          notifyEvent(PlayerQuitEvent(player, g))
         case Failure(f) =>
           notifyEvent(GameErrorEvent(PlayerQuitEvent(player, game), Failure(f)))
       }
@@ -223,13 +227,13 @@ class GameController(@Inject private var game: Game) extends IController, Provid
     }
   }
 
-  private class PlayCardCommand(gameRef: Game, player: Player, card: Card) extends Command {
+  private class PlayCardCommand(gameRef: Game, player: IPlayer, card: Card) extends Command {
     private var oldGame: Game = uninitialized
     private var newGame: Game = uninitialized
 
     override def doStep(): Unit = {
       oldGame = game
-      game.playCard(player.id, card) match {
+      game.playCard(player, card) match {
         case Success(g) =>
           game = g
           newGame = g
@@ -255,7 +259,7 @@ class GameController(@Inject private var game: Game) extends IController, Provid
   }
 
   def reset(): Unit = {
-    val playerNameIds = game.playerNames.map { case (id, name) => name -> id }.toMap
+    val playerNameIds = game.playerHands.keySet.toSeq
     game = GameFactory.create(playerNameIds)
     notifyEvent(GameChangedEvent(game))
   }
@@ -265,4 +269,8 @@ class GameController(@Inject private var game: Game) extends IController, Provid
   def getGame: Game = game
 
   def getGameState: GameState = game.state
+
+  override def players: Seq[IPlayer] = Seq.empty
+
+  override def playerCount: Int = game.playerHands.size
 }

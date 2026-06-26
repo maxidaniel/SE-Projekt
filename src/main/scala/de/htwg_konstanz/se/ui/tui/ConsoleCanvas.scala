@@ -1,6 +1,5 @@
 package de.htwg_konstanz.se.ui.tui
 
-// TODO: Rename to TextAlignment
 enum RenderAlignment {
   case Left
   case Centered

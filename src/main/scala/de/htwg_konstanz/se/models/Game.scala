@@ -1,39 +1,36 @@
 package de.htwg_konstanz.se.models
 
-import de.htwg_konstanz.se.models.GameState._
+import de.htwg_konstanz.se.models.GameState.*
 
 import java.util.UUID
-import scala.util.{Failure, Success, Try}
+import scala.util.Try
 
 trait IGame {
-  def join(playerId: UUID): Try[IGame]
-  def quit(playerId: UUID): Try[IGame]
+  def join(player: IPlayer): Try[IGame]
+  def quit(player: IPlayer): Try[IGame]
   def start(): Try[IGame]
   def abort(): Try[IGame]
   def deal(): Try[IGame]
-  def playCard(playerId: UUID, card: Card): Try[IGame]
-  def passTrick(playerId: UUID): Try[IGame]
-  def withPlayerName(playerId: UUID, name: String): IGame
-  def withoutPlayerName(playerId: UUID): IGame
+  def playCard(playerId: IPlayer, card: Card): Try[IGame]
+  def passTrick(playerId: IPlayer): Try[IGame]
 }
 
 case class Game(
-  playerHands: Map[UUID, Vector[Card]],
+  playerHands: Map[IPlayer, Vector[Card]],
   playedCards: Vector[Card],
   state: GameState,
-  playerNames: Map[UUID, String] = Map.empty,
-  currentPlayer: Option[UUID] = None,
+  currentPlayer: Option[IPlayer] = None,
   trickCount: Int = 0,
   trickRank: Option[CardRank] = None,
-  trickLeader: Option[UUID] = None
+  trickLeader: Option[IPlayer] = None
 ) extends IGame {
   def this() = {
-    this(Map.empty, Vector.empty, WaitingForPlayers, Map.empty, None, 0, None, None)
+    this(Map.empty, Vector.empty, WaitingForPlayers, None, 0, None, None)
   }
 
-  def join(playerId: UUID): Try[Game] = state.transition(this, Join(playerId))
+  def join(player: IPlayer): Try[Game] = state.transition(this, Join(player))
 
-  def quit(playerId: UUID): Try[Game] = state.transition(this, Quit(playerId))
+  def quit(player: IPlayer): Try[Game] = state.transition(this, Quit(player))
 
   def start(): Try[Game] = state.transition(this, Start)
 
@@ -41,15 +38,9 @@ case class Game(
 
   def deal(): Try[Game] = state.transition(this, Deal)
 
-  def playCard(playerId: UUID, card: Card): Try[Game] = state.transition(this, PlayCard(playerId, card))
+  def playCard(player: IPlayer, card: Card): Try[Game] = state.transition(this, PlayCard(player, card))
 
-  def passTrick(playerId: UUID): Try[Game] = state.transition(this, PassTrick(playerId))
-
-  def withPlayerName(playerId: UUID, name: String): Game =
-    copy(playerNames = playerNames + (playerId -> name))
-
-  def withoutPlayerName(playerId: UUID): Game =
-    copy(playerNames = playerNames - playerId)
+  def passTrick(player: IPlayer): Try[Game] = state.transition(this, PassTrick(player))
 }
 
 case class Deck(cards: Vector[Card]) {

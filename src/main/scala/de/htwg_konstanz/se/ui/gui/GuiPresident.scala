@@ -1,27 +1,25 @@
 package de.htwg_konstanz.se.ui.gui
 
+import com.google.inject.Inject
 import de.htwg_konstanz.se.controller.IController
 import de.htwg_konstanz.se.models.*
 import de.htwg_konstanz.se.ui.gui.PresidentViewModel
 import de.htwg_konstanz.se.util.Listener
 import javafx.application.Platform
-import javafx.event.{ActionEvent, EventHandler}
-import scalafx.Includes._
+import javafx.event.EventHandler
 import scalafx.animation.FadeTransition
 import scalafx.application.JFXApp3
 import scalafx.geometry.{Insets, Pos}
 import scalafx.scene.control.*
 import scalafx.scene.layout.*
-import scalafx.scene.paint.Color
-import scalafx.scene.text.FontWeight
-import scalafx.scene.{Parent, Scene}
+import scalafx.scene.{Cursor, Parent, Scene}
 import scalafx.util.Duration
-import scala.compiletime.uninitialized
-import com.google.inject.Inject
 
-case class GuiPresident @Inject() (controller: IController) extends Listener, JFXApp3 {
+import scala.compiletime.uninitialized
+
+case class GuiPresident @Inject()(controller: IController) extends Listener, JFXApp3 {
   controller.add(this)
-  
+
   // Source: https://patorjk.com/software/taag/#p=display&f=Cards&t=President&x=none&v=4&h=4&w=80&we=false
   private val logo: Vector[String] =
     """|.------..------..------..------..------..------..------..------..------.
@@ -38,8 +36,9 @@ case class GuiPresident @Inject() (controller: IController) extends Listener, JF
   private var listenerRegistered: Boolean = false
   private var showingSplash: Boolean = true
   private var splashLabel: Label = uninitialized
+  private var selectedCard: Option[Card] = None
 
-   private lazy val nameInput = new TextField {
+  private lazy val nameInput = new TextField {
     promptText = "Player name"
     prefColumnCount = 24
   }
@@ -71,13 +70,13 @@ case class GuiPresident @Inject() (controller: IController) extends Listener, JF
         alignment = Pos.Center
         children = Seq(
           new Button("Open Lobby") {
-            onAction = eventHandler(navigateTo(View.Lobby))
+            onMouseClicked = { _ => navigateTo(View.Lobby) }
           },
           new Button("Show Current Game") {
-            onAction = eventHandler(navigateTo(viewModel.viewForGame(controller.getGame)))
+            onMouseClicked = { _ => navigateTo(viewModel.viewForGame(controller.getGame))}
           },
           new Button("Quit") {
-            onAction = eventHandler(controller.exit())
+            onMouseClicked = { _ => controller.exit() }
           }
         )
       },
@@ -89,17 +88,15 @@ case class GuiPresident @Inject() (controller: IController) extends Listener, JF
     val game = controller.getGame
 
     def addPlayerFromInput(): Unit = {
-      val name = nameInput.text.value.trim
+      var name = nameInput.text.value.trim
       if name.isEmpty then {
-        viewModel.statusMessage = "Enter a player name before joining."
-        refreshView()
-      } else {
-        controller.join(name)
-        val player = controller.getPlayer(name)
-        if player.isDefined then {
-          viewModel.rememberPlayer(player.get)
-          nameInput.text = ""
-        }
+        name = s"Player ${controller.playerCount + 1}"
+      }
+      controller.join(name)
+      val player = controller.getPlayer(name)
+      if player.isDefined then {
+        viewModel.rememberPlayer(player.get)
+        nameInput.text = ""
       }
     }
 
@@ -113,11 +110,11 @@ case class GuiPresident @Inject() (controller: IController) extends Listener, JF
           children = Seq(
             nameInput,
             new Button("Add Player") {
-              onAction = eventHandler(addPlayerFromInput())
+              onMouseClicked = { _ => addPlayerFromInput() }
             },
             new Button("Start Game") {
               disable = game.playerHands.size < 2
-              onAction = eventHandler(controller.start())
+              onMouseClicked = { _ => controller.start() }
             }
           )
         },
@@ -127,13 +124,13 @@ case class GuiPresident @Inject() (controller: IController) extends Listener, JF
       ),
       actions = Seq(
         new Button("Undo") {
-          onAction = eventHandler(controller.undo())
+          onMouseClicked = { _ => controller.undo() }
         },
         new Button("Redo") {
-          onAction = eventHandler(controller.redo())
+          onMouseClicked = { _ => controller.redo() }
         },
         new Button("Back to Menu") {
-          onAction = eventHandler(navigateTo(View.Menu))
+          onMouseClicked = { _ => navigateTo(View.Menu) }
         }
       )
     )
@@ -154,26 +151,26 @@ case class GuiPresident @Inject() (controller: IController) extends Listener, JF
       ),
       actions = Seq(
         new Button("Undo") {
-          onAction = eventHandler(controller.undo())
+          onMouseClicked = { _ => controller.undo() }
         },
         new Button("Redo") {
-          onAction = eventHandler(controller.redo())
+          onMouseClicked = { _ => controller.redo() }
         },
         new Button("Abort Game") {
           disable = game.state != GameState.Playing
-          onAction = eventHandler(controller.abort())
+          onMouseClicked = { _ => controller.abort() }
         },
         new Button("Back to Lobby") {
-          onAction = eventHandler(navigateTo(View.Lobby))
+          onMouseClicked = { _ => navigateTo(View.Lobby)}
         },
         new Button("Main Menu") {
-          onAction = eventHandler(navigateTo(View.Menu))
+          onMouseClicked = { _ => navigateTo(View.Menu)}
         }
       )
     )
   }
 
-  def resultView(): Parent = page(
+  private def resultView(): Parent = page(
     header = viewModel.resultTitle,
     bodyContent = Seq(
       statusLabel(),
@@ -182,13 +179,13 @@ case class GuiPresident @Inject() (controller: IController) extends Listener, JF
     ),
     actions = Seq(
       new Button("Back to Lobby") {
-        onAction = eventHandler {
+        onMouseClicked = { _ =>
           controller.reset()
           navigateTo(View.Lobby)
         }
       },
       new Button("Main Menu") {
-        onAction = eventHandler {
+        onMouseClicked = { _ =>
           controller.reset()
           navigateTo(View.Menu)
         }
@@ -227,7 +224,8 @@ case class GuiPresident @Inject() (controller: IController) extends Listener, JF
 
   private def splashView(): Parent = {
     splashLabel = new Label(logo.mkString("\n")) {
-      style = s"""
+      style =
+        s"""
         -fx-font-family: 'Courier New', monospace;
         -fx-font-size: 11px;
         -fx-text-fill: #1f2937;
@@ -276,9 +274,12 @@ case class GuiPresident @Inject() (controller: IController) extends Listener, JF
 
   private def playerList(game: Game, allowRemove: Boolean): VBox = {
     val playerEntries = game.playerHands.toVector.sortBy(_._1.toString)
-    if playerEntries.isEmpty then return new VBox { spacing = 8; children = Seq(new Label("No players have joined yet.")) }
+    if playerEntries.isEmpty then return new VBox {
+      spacing = 8
+      children = Seq(new Label("No players have joined yet."))
+    }
 
-    val nameWidths = playerEntries.map { case (id, _) => viewModel.displayName(id).length }
+    val nameWidths = playerEntries.map { case (player, _) => viewModel.displayName(player).length }
     val cardCountWidths = playerEntries.map { case (_, cards) => s"${cards.size} cards".length }
     val idWidths = playerEntries.map { case (id, _) => id.toString.take(8).length }
 
@@ -288,10 +289,10 @@ case class GuiPresident @Inject() (controller: IController) extends Listener, JF
 
     new VBox {
       spacing = 8
-      children = playerEntries.map { case (playerId, cards) =>
-        val name = viewModel.displayName(playerId)
+      children = playerEntries.map { case (player, cards) =>
+        val name = viewModel.displayName(player)
         val cardCount = s"${cards.size} cards"
-        val playerIdStr = playerId.toString.take(8)
+        val playerIdStr = player.id.toString.take(8)
 
         new HBox {
           spacing = 10
@@ -310,7 +311,7 @@ case class GuiPresident @Inject() (controller: IController) extends Listener, JF
             }
           ) ++
             (if allowRemove then Seq(new Button("Remove") {
-              onAction = eventHandler(controller.quit(playerId))
+              onMouseClicked = {_ => controller.quit(player.id)}
             }) else Seq.empty)
         }
       }
@@ -319,7 +320,10 @@ case class GuiPresident @Inject() (controller: IController) extends Listener, JF
 
   private def handsPanel(game: Game): VBox = {
     val playerEntries = game.playerHands.toVector.sortBy(_._1.toString)
-    if playerEntries.isEmpty then return new VBox { spacing = 12; children = Seq(new Label("No hands available.")) }
+    if playerEntries.isEmpty then return new VBox {
+      spacing = 12
+      children = Seq(new Label("No hands available."))
+    }
 
     val nameWidths = playerEntries.map { case (id, _) => viewModel.displayName(id).length }
     val maxNameWidth = nameWidths.max
@@ -358,6 +362,7 @@ case class GuiPresident @Inject() (controller: IController) extends Listener, JF
       minWidth = 56
       minHeight = 76
       style = "-fx-border-color: #1f2937; -fx-border-radius: 6; -fx-background-radius: 6; -fx-background-color: white; -fx-padding: 6;"
+      val defaultStyle: String = style.value
       children = Seq(
         new Label(if card.rank == null then "?" else card.rank.symbol) {
           style = s"-fx-font-size: 20px; -fx-font-weight: bold; -fx-text-fill: ${if red then "#dc2626" else "#111827"};"
@@ -366,6 +371,23 @@ case class GuiPresident @Inject() (controller: IController) extends Listener, JF
           style = s"-fx-font-size: 22px; -fx-text-fill: ${if red then "#dc2626" else "#111827"};"
         }
       )
+
+      onMouseEntered = { ev =>
+        style = "-fx-border-color: #ffff00; -fx-border-radius: 6; -fx-background-radius: 6;"
+        cursor = Cursor.Hand
+      }
+
+      onMouseExited = { ev =>
+        if (!selectedCard.contains(card))
+          style = defaultStyle
+
+        cursor = Cursor.Default
+      }
+
+      onMouseClicked = { ev =>
+        style = "-fx-border-color: #ff0000; -fx-border-radius: 6; -fx-background-radius: 6;"
+        selectedCard = Some(card)
+      }
     }
   }
 
@@ -387,13 +409,10 @@ case class GuiPresident @Inject() (controller: IController) extends Listener, JF
     switchToView(view)
   }
 
-  
 
   private def switchToView(view: Parent): Unit = {
     stage.scene.value.setRoot(view.delegate)
   }
-
-  private def eventHandler(handler: => Unit): EventHandler[ActionEvent] = (_: ActionEvent) => handler
 
   private def runOnFxThread(action: => Unit): Unit = {
     if Platform.isFxApplicationThread then action
