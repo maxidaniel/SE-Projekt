@@ -33,8 +33,8 @@ case class TerminalRenderer(terminal: Terminal) {
   def render(frame: Vector[String]): Unit = {
     clear()
 
-    val terminalHeight = terminal.getHeight
-    val terminalWidth = terminal.getWidth
+    val terminalHeight = terminal.getRows
+    val terminalWidth = terminal.getColumns
 
     if terminalWidth < 80 then {
       terminal.writer().println("terminal size of 80x20 required")

@@ -1,7 +1,8 @@
 package de.htwg_konstanz.se.ui.gui
 
-import de.htwg_konstanz.se.controller.GameController
+import de.htwg_konstanz.se.controller.IController
 import de.htwg_konstanz.se.models.*
+import de.htwg_konstanz.se.ui.gui.PresidentViewModel
 import de.htwg_konstanz.se.util.Listener
 import javafx.application.Platform
 import javafx.event.{ActionEvent, EventHandler}
@@ -16,9 +17,11 @@ import scalafx.scene.text.FontWeight
 import scalafx.scene.{Parent, Scene}
 import scalafx.util.Duration
 import scala.compiletime.uninitialized
+import com.google.inject.Inject
 
-case class GuiPresident(controller: GameController) extends Listener, JFXApp3 {
-
+case class GuiPresident @Inject() (controller: IController) extends Listener, JFXApp3 {
+  controller.add(this)
+  
   // Source: https://patorjk.com/software/taag/#p=display&f=Cards&t=President&x=none&v=4&h=4&w=80&we=false
   private val logo: Vector[String] =
     """|.------..------..------..------..------..------..------..------..------.

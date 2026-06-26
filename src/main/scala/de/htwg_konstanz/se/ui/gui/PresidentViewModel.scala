@@ -1,14 +1,15 @@
 package de.htwg_konstanz.se.ui.gui
 
-import de.htwg_konstanz.se.controller.GameController
+import de.htwg_konstanz.se.controller.IController
 import de.htwg_konstanz.se.models.*
 import java.util.UUID
+import com.google.inject.Inject
 
 enum View {
   case Menu, Lobby, Game, Result
 }
 
-class PresidentViewModel(controller: GameController) {
+class PresidentViewModel(@Inject controller: IController) {
   var currentView: View = View.Menu
   var knownPlayers: Map[UUID, String] = Map.empty
   var statusMessage: String = "Welcome to President. Create a lobby to begin."

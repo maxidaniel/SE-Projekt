@@ -3,6 +3,7 @@ package de.htwg_konstanz.se.models
 import org.scalatest.matchers.should.Matchers._
 import org.scalatest.wordspec.AnyWordSpec
 
+
 import java.util.UUID
 
 class GameStateSpec extends AnyWordSpec {
@@ -197,14 +198,32 @@ class GameStateSpec extends AnyWordSpec {
 
     "transition playCard with card that cannot beat previous fail" in {
       val playerId = UUID.randomUUID()
-      val game = Game(Map(playerId -> Vector(Card.ThreeOfHearts)), Vector(Card.KingOfHearts), PlayingState)
+      val game = Game(
+        Map(playerId -> Vector(Card.ThreeOfHearts)),
+        Vector(Card.KingOfHearts),
+        PlayingState,
+        Map.empty,
+        Some(playerId),
+        1,
+        Some(CardRank.King),
+        Some(playerId)
+      )
       PlayingState.transition(game, PlayCard(playerId, Card.ThreeOfHearts)).isFailure should be(true)
     }
 
     "transition playCard successfully" in {
       val playerId = UUID.randomUUID()
-      val game = Game(Map(playerId -> Vector(Card.KingOfHearts)), Vector(Card.FiveOfHearts), PlayingState)
-      PlayingState.transition(game, PlayCard(playerId, Card.KingOfHearts)).isSuccess should be(true)
+      val game = Game(
+        Map(playerId -> Vector(Card.AceOfSpades)),
+        Vector(Card.AceOfClubs),
+        PlayingState,
+        Map.empty,
+        Some(playerId),
+        1,
+        Some(CardRank.Ace),
+        Some(playerId)
+      )
+      PlayingState.transition(game, PlayCard(playerId, Card.AceOfSpades)).isSuccess should be(true)
     }
   }
 

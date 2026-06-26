@@ -1,6 +1,7 @@
 package de.htwg_konstanz.se.controller.strategies
 
 import de.htwg_konstanz.se.models.{Card, Game}
+import com.google.inject.Inject
 
 case class PlayLowestPossibleCardStrategy() extends IStrategy {
 

@@ -6,22 +6,29 @@ import java.util.UUID
 import scala.util.{Failure, Success, Try}
 
 trait IGame {
-  def join(id: UUID): Try[IGame]
-
-  def quit(id: UUID): Try[IGame]
-
+  def join(playerId: UUID): Try[IGame]
+  def quit(playerId: UUID): Try[IGame]
   def start(): Try[IGame]
-
   def abort(): Try[IGame]
-
   def deal(): Try[IGame]
-
-  def playCard(player: IPlayer, card: Card): Try[IGame]
+  def playCard(playerId: UUID, card: Card): Try[IGame]
+  def passTrick(playerId: UUID): Try[IGame]
+  def withPlayerName(playerId: UUID, name: String): IGame
+  def withoutPlayerName(playerId: UUID): IGame
 }
 
-case class Game(playerHands: Map[UUID, Vector[Card]], playedCards: Vector[Card], state: GameState, playerNames: Map[UUID, String] = Map.empty, currentPlayer: Option[UUID] = None) {
+case class Game(
+  playerHands: Map[UUID, Vector[Card]],
+  playedCards: Vector[Card],
+  state: GameState,
+  playerNames: Map[UUID, String] = Map.empty,
+  currentPlayer: Option[UUID] = None,
+  trickCount: Int = 0,
+  trickRank: Option[CardRank] = None,
+  trickLeader: Option[UUID] = None
+) extends IGame {
   def this() = {
-    this(Map.empty, Vector.empty, WaitingForPlayers, Map.empty, None)
+    this(Map.empty, Vector.empty, WaitingForPlayers, Map.empty, None, 0, None, None)
   }
 
   def join(playerId: UUID): Try[Game] = state.transition(this, Join(playerId))
@@ -35,6 +42,8 @@ case class Game(playerHands: Map[UUID, Vector[Card]], playedCards: Vector[Card],
   def deal(): Try[Game] = state.transition(this, Deal)
 
   def playCard(playerId: UUID, card: Card): Try[Game] = state.transition(this, PlayCard(playerId, card))
+
+  def passTrick(playerId: UUID): Try[Game] = state.transition(this, PassTrick(playerId))
 
   def withPlayerName(playerId: UUID, name: String): Game =
     copy(playerNames = playerNames + (playerId -> name))
@@ -73,6 +82,6 @@ object Game {
   def getPower(card: Card): Int = rankPower(card.rank)
 
   def canBeat(current: Card, previous: Card): Boolean = {
-    rankPower(current.rank) > rankPower(previous.rank)
+    rankPower(current.rank) >= rankPower(previous.rank)
   }
 }

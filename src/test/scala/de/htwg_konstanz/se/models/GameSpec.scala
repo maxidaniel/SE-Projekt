@@ -1,6 +1,8 @@
 package de.htwg_konstanz.se.models
 
+import de.htwg_konstanz.se.controller.GameController
 import de.htwg_konstanz.se.models.GameState.{Ended, Playing}
+import de.htwg_konstanz.se.models.PlayingState
 import org.scalatest.TryValues.*
 import org.scalatest.matchers.should.Matchers.*
 import org.scalatest.wordspec.AnyWordSpec
@@ -8,6 +10,17 @@ import org.scalatest.wordspec.AnyWordSpec
 import java.util.UUID
 
 class GameSpec extends AnyWordSpec {
+  private def makeGame(playerHands: Map[UUID, Vector[Card]], playedCards: Vector[Card] = Vector.empty, state: GameState = Playing, playerNames: Map[UUID, String] = Map.empty, currentPlayer: Option[UUID] = None, trickCount: Int = 0, trickRank: Option[CardRank] = None, trickLeader: Option[UUID] = None): Game = {
+    Game(playerHands, playedCards, state, playerNames, currentPlayer, trickCount, trickRank, trickLeader)
+  }
+
+  private def makePlayingGame(playerHands: Map[UUID, Vector[Card]], trickRank: CardRank, trickLeader: UUID, currentPlayer: UUID = null, playedCards: Vector[Card] = Vector.empty): Game = {
+    val cp = if (currentPlayer != null) currentPlayer else trickLeader
+    Game(playerHands, playedCards, PlayingState, Map.empty, Some(cp), 1, Some(trickRank), Some(trickLeader))
+  }
+
+  private def makeController(game: Game): GameController = new GameController(game)
+
   "A game" should {
     "be empty by default" in {
       val game = new Game()
@@ -135,19 +148,17 @@ class GameSpec extends AnyWordSpec {
       afterPlay.playerHands(p1) should not contain playedCard
     }
 
-    "reject a played card that does not outrank the previous card" in {
+    "reject a played card with wrong rank" in {
       val p1 = UUID.randomUUID()
       val p2 = UUID.randomUUID()
-      val game = Game(
-        Map(
-          p1 -> Vector(Card.FiveOfHearts),
-          p2 -> Vector(Card.TenOfClubs),
-        ),
-        Vector(Card.TenOfHearts),
-        Playing,
+      val game = makePlayingGame(
+        Map(p1 -> Vector(Card.FiveOfHearts), p2 -> Vector(Card.TenOfClubs)),
+        CardRank.Ten,
+        p1,
+        playedCards = Vector(Card.TenOfHearts)
       )
 
-      game.playCard(p1, Card.FiveOfHearts).failure.exception should have message "Played card must outrank the previous card."
+      game.playCard(p1, Card.FiveOfHearts).failure.exception should have message "Must play cards of rank Ten, not Five."
     }
 
     "end the game when a player plays the last card in hand" in {
@@ -155,12 +166,14 @@ class GameSpec extends AnyWordSpec {
       val p2 = UUID.randomUUID()
       val winningCard = Card.AceOfSpades
       val game = Game(
-        Map(
-          p1 -> Vector(winningCard),
-          p2 -> Vector(Card.KingOfHearts),
-        ),
-        Vector(Card.KingOfDiamonds),
-        Playing,
+        Map(p1 -> Vector(winningCard), p2 -> Vector(Card.KingOfHearts)),
+        Vector.empty,
+        PlayingState,
+        Map.empty,
+        Some(p1),
+        0,
+        None,
+        None
       )
 
       val ended = game.playCard(p1, winningCard).success.value
@@ -208,6 +221,24 @@ class GameSpec extends AnyWordSpec {
       val p1 = UUID.randomUUID()
       val game = Game(Map(p1 -> Vector.empty), Vector.empty, GameState.WaitingForPlayers)
       game.deal().failure.exception should have message "Can only deal cards when two or more players are in the game."
+    }
+  }
+
+  "Game.getPower" should {
+    "return correct power for all card ranks" in {
+      Game.getPower(Card.ThreeOfHearts) should be(1)
+      Game.getPower(Card.FourOfHearts) should be(2)
+      Game.getPower(Card.FiveOfHearts) should be(3)
+      Game.getPower(Card.SixOfHearts) should be(4)
+      Game.getPower(Card.SevenOfHearts) should be(5)
+      Game.getPower(Card.EightOfHearts) should be(6)
+      Game.getPower(Card.NineOfHearts) should be(7)
+      Game.getPower(Card.TenOfHearts) should be(8)
+      Game.getPower(Card.JackOfHearts) should be(9)
+      Game.getPower(Card.QueenOfHearts) should be(10)
+      Game.getPower(Card.KingOfHearts) should be(11)
+      Game.getPower(Card.AceOfHearts) should be(12)
+      Game.getPower(Card.TwoOfHearts) should be(13)
     }
   }
 

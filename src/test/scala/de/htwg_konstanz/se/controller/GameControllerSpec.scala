@@ -1,5 +1,6 @@
 package de.htwg_konstanz.se.controller
 
+import de.htwg_konstanz.se.controller.strategies.PlayLowestPossibleCardStrategy
 import de.htwg_konstanz.se.models.GameState.{Aborted, Ended, Playing, WaitingForPlayers}
 import de.htwg_konstanz.se.models.*
 import de.htwg_konstanz.se.util.Listener
@@ -122,7 +123,8 @@ class GameControllerSpec extends AnyWordSpec {
         case _ =>
       }
       controller.quit(differentPlayer.id)
-      observedEvents should be(empty)
+      observedEvents should not be empty
+      observedEvents.head shouldBe a[GameErrorEvent]
     }
 
     "abort a game and emit a GameAbortedEvent" in {
@@ -221,13 +223,14 @@ class GameControllerSpec extends AnyWordSpec {
       val p1 = UUID.fromString("11111111-1111-1111-1111-111111111111")
       val p2 = UUID.fromString("22222222-2222-2222-2222-222222222222")
       val game = Game(
-        Map(
-          p1 -> Vector(Card.AceOfSpades),
-          p2 -> Vector(Card.KingOfHearts, Card.QueenOfClubs)
-        ),
-        Vector(Card.FiveOfClubs),
-        Playing,
-        Map(p1 -> "Alice", p2 -> "Bob")
+        Map(p1 -> Vector(Card.AceOfSpades), p2 -> Vector(Card.KingOfHearts, Card.QueenOfClubs)),
+        Vector(Card.AceOfClubs),
+        PlayingState,
+        Map(p1 -> "Alice", p2 -> "Bob"),
+        Some(p1),
+        1,
+        Some(CardRank.Ace),
+        Some(p2)
       )
       val controller = GameController(game)
       var observed: Option[GameEndedEvent] = None
@@ -246,8 +249,11 @@ class GameControllerSpec extends AnyWordSpec {
       val game = Game(
         Map(p1 -> Vector(Card.KingOfHearts), p2 -> Vector(Card.AceOfSpades)),
         Vector(Card.FiveOfClubs),
-        Playing,
+        PlayingState,
         Map(p1 -> "Alice", p2 -> "Bob"),
+        Some(p2),
+        1,
+        Some(CardRank.Five),
         Some(p2)
       )
       val controller = GameController(game)
@@ -259,6 +265,129 @@ class GameControllerSpec extends AnyWordSpec {
       controller.playCard(controller.getPlayer("Alice").value, Card.KingOfHearts)
       observed.isDefined should be(true)
       observed.value.error.failure.exception.getMessage should include("not the turn")
+    }
+
+    "play a card by index successfully" in {
+      val p1 = UUID.fromString("11111111-1111-1111-1111-111111111111")
+      val p2 = UUID.fromString("22222222-2222-2222-2222-222222222222")
+      val game = Game(
+        Map(p1 -> Vector(Card.FourOfHearts, Card.FiveOfClubs), p2 -> Vector(Card.SixOfSpades)),
+        Vector(Card.FourOfDiamonds),
+        PlayingState,
+        Map(p1 -> "Alice", p2 -> "Bob"),
+        Some(p1),
+        1,
+        Some(CardRank.Four),
+        Some(p1)
+      )
+      val controller = GameController(game)
+      var observed: Option[CardPlayedEvent] = None
+      controller.add {
+        case e: CardPlayedEvent => observed = Some(e)
+        case _ =>
+      }
+      val player = controller.getPlayer(p1).value
+      controller.playCardByIndex(player, 0)
+      observed.isDefined should be(true)
+      observed.get.card should be(Card.FourOfHearts)
+      controller.getGame.playerHands(p1) should be(Vector(Card.FiveOfClubs))
+    }
+
+    "reject playing a card by invalid index" in {
+      val p1 = UUID.fromString("11111111-1111-1111-1111-111111111111")
+      val game = Game(
+        Map(p1 -> Vector(Card.ThreeOfHearts)),
+        Vector.empty,
+        Playing,
+        Map(p1 -> "Alice"),
+        Some(p1)
+      )
+      val controller = GameController(game)
+      val player = controller.getPlayer("Alice").value
+      var observed: Option[GameErrorEvent] = None
+      controller.add {
+        case e: GameErrorEvent => observed = Some(e)
+        case _ =>
+      }
+      controller.playCardByIndex(player, 5)
+      observed.isDefined should be(true)
+      observed.value.error.failure.exception.getMessage should include("Invalid card index")
+    }
+
+    "play a card by computer using strategy" in {
+      val p1 = UUID.fromString("11111111-1111-1111-1111-111111111111")
+      val p2 = UUID.fromString("22222222-2222-2222-2222-222222222222")
+      val strategy = PlayLowestPossibleCardStrategy()
+      val game = Game(
+        Map(p1 -> Vector(Card.FourOfHearts, Card.FiveOfClubs), p2 -> Vector(Card.SixOfSpades)),
+        Vector(Card.FourOfDiamonds),
+        PlayingState,
+        Map(p1 -> "Alice", p2 -> "Bob"),
+        Some(p1),
+        1,
+        Some(CardRank.Four),
+        Some(p1)
+      )
+      val controller = GameController(game)
+      var observed: Option[CardPlayedEvent] = None
+      controller.add {
+        case e: CardPlayedEvent => observed = Some(e)
+        case _ =>
+      }
+      val player = Player(p1, "Alice", ComputerPlayer, Some(strategy))
+      controller.playCardByComputer(player)
+      observed.isDefined should be(true)
+      observed.get.card should be(Card.FourOfHearts)
+    }
+
+    "reject computer play when not player's turn" in {
+      val p1 = UUID.fromString("11111111-1111-1111-1111-111111111111")
+      val p2 = UUID.fromString("22222222-2222-2222-2222-222222222222")
+      val strategy = PlayLowestPossibleCardStrategy()
+      val game = Game(
+        Map(p1 -> Vector(Card.ThreeOfHearts), p2 -> Vector(Card.FourOfClubs)),
+        Vector(Card.FiveOfSpades),
+        PlayingState,
+        Map(p1 -> "Alice", p2 -> "Bob"),
+        Some(p2),
+        1,
+        Some(CardRank.Five),
+        Some(p2)
+      )
+      val controller = GameController(game)
+      val player = Player(p1, "Alice", ComputerPlayer, Some(strategy))
+      var observed: Option[GameErrorEvent] = None
+      controller.add {
+        case e: GameErrorEvent => observed = Some(e)
+        case _ =>
+      }
+      controller.playCardByComputer(player)
+      observed.isDefined should be(true)
+      observed.value.error.failure.exception.getMessage should include("Not this player's turn")
+    }
+
+    "reject computer play when no strategy configured" in {
+      val p1 = UUID.fromString("11111111-1111-1111-1111-111111111111")
+      val game = Game(
+        Map(p1 -> Vector(Card.ThreeOfHearts)),
+        Vector.empty,
+        PlayingState,
+        Map(p1 -> "Alice"),
+        Some(p1),
+        1,
+        Some(CardRank.Three),
+        Some(p1)
+      )
+      val controller = GameController(game)
+      val player = Player(p1, "Alice", ComputerPlayer, None)
+      var observed: Option[GameErrorEvent] = None
+      controller.add {
+        case e: GameErrorEvent => observed = Some(e)
+        case _ =>
+      }
+      controller.playCardByComputer(player)
+      observed.isDefined should be(true)
+      observed.value.error.failure.exception.getMessage should include("no strategy")
     }
   }
 }

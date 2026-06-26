@@ -3,6 +3,7 @@ package de.htwg_konstanz.se.controller.strategies
 import de.htwg_konstanz.se.models.{Card, Game}
 
 import scala.util.Random
+import com.google.inject.Inject
 
 case class PlayRandomCardStrategy() extends IStrategy {
   override def name = "Random card strategy"

@@ -1,15 +1,22 @@
 package de.htwg_konstanz.se.ui.tui
 
-import de.htwg_konstanz.se.controller.GameController
+import de.htwg_konstanz.se.controller.IController
 import de.htwg_konstanz.se.models.GameState.*
 import de.htwg_konstanz.se.models.{Card, Game, GameEvent, GameExitEvent}
 import de.htwg_konstanz.se.util.Listener
 import org.jline.terminal.Terminal.*
+import org.jline.keymap.{BindingReader, KeyMap}
 import org.jline.terminal.{Terminal, TerminalBuilder}
+import com.google.inject.Inject
 
-// This class is going to be updated by a service in the future. Refactor it in such a way, that we call Service.register(Tui),
-// which establishes event handling in the tui, and then call Service.run(), which then handles all game state.
-case class TuiReisen(controller: GameController) extends Listener {
+case class TuiReisen @Inject() (controller: IController) extends Listener {
+  controller.add(this)
+
+  private val Esc = "\u001b"
+  private val Up = "\u001b[A"
+  private val Down = "\u001b[B"
+  private val Right = "\u001b[C"
+  private val Left = "\u001b[D"
 
   // Source: https://patorjk.com/software/taag/#p=display&f=Cards&t=President&x=none&v=4&h=4&w=80&we=false
   private val logo: Vector[String] =
@@ -43,55 +50,63 @@ case class TuiReisen(controller: GameController) extends Listener {
   renderer.initialize()
 
   def run(): Unit = {
-    val reader = terminal.reader()
+    val bindingReader = new BindingReader(terminal.reader())
+    val keyMap = new KeyMap[String]()
+    keyMap.bind("quit", "q")
+    keyMap.bind("start", "\n")
+    keyMap.bind("start", "\r")
+    keyMap.bind("add", "+")
+    keyMap.bind("scale-down", "-")
+    keyMap.bind("undo", "z")
+    keyMap.bind("undo", "Z")
+    keyMap.bind("redo", "y")
+    keyMap.bind("redo", "Y")
+    keyMap.bind("abort", Esc)
+    keyMap.bind("up", Up)
+    keyMap.bind("down", Down)
+    keyMap.bind("right", Right)
+    keyMap.bind("left", Left)
+    for (i <- 0 to 9) {
+      keyMap.bind(s"card-$i", i.toString)
+    }
+    keyMap.bind("continue-turn", "\t")
+    keyMap.bind("pass", "p")
+
     renderer.transitionTo(TuiView.Splash, buildCanvas(Vector(centeredObject(logo))))
     Thread.sleep(2500)
 
     refresh()
 
     while (!shouldClose) {
-      reader.read() match {
-        // exit if exit is requested
-        case 'q' => controller.exit()
+      val operation = bindingReader.readBinding(keyMap)
+      operation match {
+        case "quit" => controller.exit()
 
-        // Enter key
-        case 13 =>
-          if controller.getGameState == Aborted then
-            controller.reset()
+        case "start" =>
+          if controller.getGameState == Aborted then controller.reset()
           controller.start()
 
-        // +
-        case 43 => handlePlus(controller.getGame)
+        case "add" => handlePlus(controller.getGame)
 
-        // -
-        case 45 => handleMinus(controller.getGame)
+        case "scale-down" => handleMinus(controller.getGame)
 
-        case 'z' => controller.undo()
-        case 'y' => controller.redo()
+        case "undo" => controller.undo()
 
-        // Escape key
-        case 27 =>
+        case "redo" => controller.redo()
+
+        case "abort" =>
           if controller.getGameState == Playing then controller.abort()
-          else reader.read() match {
-            // aux key code '['
-            case 91 =>
-              reader.read() match {
-                // Up key
-                case 65 =>
 
-                // Down key
-                case 66 =>
+        case "continue-turn" =>
+          handleContinueTurn(controller.getGame)
 
-                // Right key
-                case 67 =>
+        case "pass" =>
+          handlePass(controller.getGame)
 
-                // Left key
-                case 68 => print("left")
+        case _ if operation.startsWith("card-") =>
+          val index = operation.drop(5).toInt
+          handleCardPlay(controller.getGame, index)
 
-                case _ =>
-              }
-            case _ =>
-          }
         case _ =>
       }
     }
@@ -112,7 +127,7 @@ case class TuiReisen(controller: GameController) extends Listener {
     }
   }
 
- private[tui] def handlePlus(game: Game): Unit = {
+  private[tui] def handlePlus(game: Game): Unit = {
     game.state match {
       case Playing =>
         renderScale = math.min(3, renderScale + 1)
@@ -126,6 +141,54 @@ case class TuiReisen(controller: GameController) extends Listener {
     game.state match {
       case Playing =>
         renderScale = math.max(1, renderScale - 1)
+      case _ =>
+    }
+  }
+
+  private[tui] def handleCardPlay(game: Game, index: Int): Unit = {
+    game.state match {
+      case Playing =>
+        game.currentPlayer match {
+          case Some(currentId) =>
+            controller.getPlayer(currentId) match {
+              case Some(player) =>
+                controller.playCardByIndex(player, index)
+              case None =>
+            }
+          case None =>
+        }
+      case _ =>
+    }
+  }
+
+  private[tui] def handleContinueTurn(game: Game): Unit = {
+    game.state match {
+      case Playing =>
+        game.currentPlayer match {
+          case Some(currentId) =>
+            controller.getPlayer(currentId) match {
+              case Some(player) =>
+                controller.playCardByComputer(player)
+              case None =>
+            }
+          case None =>
+        }
+      case _ =>
+    }
+  }
+
+  private[tui] def handlePass(game: Game): Unit = {
+    game.state match {
+      case Playing =>
+        game.currentPlayer match {
+          case Some(currentId) =>
+            controller.getPlayer(currentId) match {
+              case Some(player) =>
+                controller.passTrick(player)
+              case None =>
+            }
+          case None =>
+        }
       case _ =>
     }
   }
@@ -160,8 +223,8 @@ case class TuiReisen(controller: GameController) extends Listener {
 
       case Playing =>
         val active = activeCards(game)
-        val maxScale = 3
-        renderScale = math.min(renderScale, maxScale)
+        val currentPlayerId = game.currentPlayer
+        val currentPlayerName = currentPlayerId.flatMap(id => game.playerNames.get(id))
 
         val cardRender = CardRenderer.render(
           cards = active,
@@ -173,12 +236,23 @@ case class TuiReisen(controller: GameController) extends Listener {
         val cardsX = math.max(0, (terminal.getColumns - cardsWidth) / 2)
         val cardsY = math.max(6, terminal.getRows - cardRender.lines.length - 1)
 
+        val turnInfo = currentPlayerName match {
+          case Some(name) => Vector(s"Current turn: $name")
+          case None => Vector("Current turn: ?")
+        }
+
+        val controls = Vector(
+          "0-9: Play card  p: Pass  Tab: Auto-play  Esc: Abort  q: Quit"
+        )
+
         (
           TuiView.Playing,
           Vector(
             RenderObj(2, 1, Vector("Game Running")),
             RenderObj(2, 3, Vector("Esc: Abort game  q: Quit")),
             RenderObj(2, 4, Vector(s"Scale: $renderScale ( +: up  -: down )")),
+            RenderObj(2, 6, turnInfo),
+            RenderObj(2, 7, controls),
             RenderObj(cardsX, cardsY, cardRender.lines)
           ) ++ playersPanel
         )
@@ -218,8 +292,11 @@ case class TuiReisen(controller: GameController) extends Listener {
           val y = 3 + index
           val cardsText =
             if cards.isEmpty then "-"
-            else cards.map(card => s"[${card.toString}]").mkString(" ")
-          val playerName = s"Player ${id.toString.take(8)}"
+            else cards.zipWithIndex.map { case (card, cardIndex) =>
+              val marker = if (game.currentPlayer.contains(id)) "*" else " "
+              s"[$cardIndex:$marker]${card.toString}"
+            }.mkString(" ")
+          val playerName = s"${game.playerNames.get(id).getOrElse("Player")} ${id.toString.take(8)}"
 
           Vector(
             RenderObj.Left(panelX, y, Vector(cardsText), width = Some(cardsWidth)),
