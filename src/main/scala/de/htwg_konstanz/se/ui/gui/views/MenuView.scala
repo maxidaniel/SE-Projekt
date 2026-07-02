@@ -1,9 +1,11 @@
 package de.htwg_konstanz.se.ui.gui.views
 
 import de.htwg_konstanz.se.ui.gui.{GuiViews, IGuiPresenter, View}
+import scalafx.Includes.*
 import scalafx.geometry.{Insets, Pos}
 import scalafx.scene.control.*
 import scalafx.scene.layout.*
+import scalafx.stage.FileChooser
 
 case class MenuView(p: IGuiPresenter) extends BorderPane {
   padding = Insets(32)
@@ -17,6 +19,32 @@ case class MenuView(p: IGuiPresenter) extends BorderPane {
   }
   var showGameButton: Button = new Button("Show Current Game") {
     onMouseClicked = _ => p.navigateTo(p.viewForGame(p.controller.getGame))
+  }
+  var loadButton: Button = new Button("Load Game") {
+    onMouseClicked = _ => {
+      val window = scene.value.getWindow
+      if window != null then
+        val chooser = new FileChooser()
+        chooser.setTitle("Load Game")
+        chooser.getExtensionFilters.add(new FileChooser.ExtensionFilter("JSON Files", "*.json"))
+        chooser.getExtensionFilters.add(new FileChooser.ExtensionFilter("XML Files", "*.xml"))
+        val file = chooser.showOpenDialog(window)
+        if file != null then
+          p.load(file.getAbsolutePath)
+          p.navigateTo(p.viewForGame(p.controller.getGame))
+    }
+  }
+  var deleteSaveButton: Button = new Button("Delete Save") {
+    onMouseClicked = _ => {
+      val window = scene.value.getWindow
+      if window != null then
+        val chooser = new FileChooser()
+        chooser.setTitle("Delete Save File")
+        chooser.getExtensionFilters.add(new FileChooser.ExtensionFilter("JSON Files", "*.json"))
+        chooser.getExtensionFilters.add(new FileChooser.ExtensionFilter("XML Files", "*.xml"))
+        val file = chooser.showOpenDialog(window)
+        if file != null then p.deleteSave(file.getAbsolutePath)
+    }
   }
   var quitButton: Button = new Button("Quit") {
     onMouseClicked = _ => p.controller.exit()
@@ -36,7 +64,7 @@ case class MenuView(p: IGuiPresenter) extends BorderPane {
       new HBox {
         spacing = 12
         alignment = Pos.Center
-        children = Seq(openLobbyButton, showGameButton, quitButton)
+        children = Seq(openLobbyButton, loadButton, deleteSaveButton, showGameButton, quitButton)
       },
       rulesPanel
     )

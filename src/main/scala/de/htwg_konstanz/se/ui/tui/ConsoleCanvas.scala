@@ -15,21 +15,21 @@ case class RenderObj(
 )
 
 object RenderObj {
-  //Indicates that the specified lines should be left-aligned
+  // Indicates that the specified lines should be left-aligned
   def Left(x: Int, y: Int, lines: Vector[String], width: Option[Int] = None): RenderObj =
     RenderObj(x, y, lines, RenderAlignment.Left, width)
 
-  //Indicates that the specified lines should be centered in the provided width
+  // Indicates that the specified lines should be centered in the provided width
   def Centered(x: Int, y: Int, lines: Vector[String], width: Option[Int] = None): RenderObj =
     RenderObj(x, y, lines, RenderAlignment.Centered, width)
 
-  //Indicates that the specified lines should be right-aligned
+  // Indicates that the specified lines should be right-aligned
   def Right(x: Int, y: Int, lines: Vector[String], width: Option[Int] = None): RenderObj =
     RenderObj(x, y, lines, RenderAlignment.Right, width)
 }
 
 object ConsoleCanvas {
-  //Utility function to render a list of RenderObjs
+  // Utility function to render a list of RenderObjs
   def renderFrame(width: Int, height: Int, renderObjs: Seq[RenderObj]): Vector[String] = {
     val canvas = ConsoleCanvas(width, height)
     canvas.drawRenderObjs(renderObjs)
@@ -45,9 +45,7 @@ case class ConsoleCanvas(width: Int, height: Int, backgroundChar: Char = ' ') {
 
   // Clear each row via empty space char
   def clear(char: Char = backgroundChar): Unit = {
-    for y <- 0 until safeHeight do
-      for x <- 0 until safeWidth do
-        buffer(y)(x) = char
+    for y <- 0 until safeHeight do for x <- 0 until safeWidth do buffer(y)(x) = char
   }
 
   def drawText(x: Int, y: Int, text: String): Unit = {
@@ -55,21 +53,18 @@ case class ConsoleCanvas(width: Int, height: Int, backgroundChar: Char = ' ') {
 
     text.zipWithIndex.foreach { case (char, offset) =>
       val drawX = x + offset
-      if drawX >= 0 && drawX < safeWidth then
-        buffer(y)(drawX) = char
+      if drawX >= 0 && drawX < safeWidth then buffer(y)(drawX) = char
     }
   }
 
   def drawHorizontalLine(x: Int, y: Int, length: Int, char: Char = '─'): Unit = {
     if length <= 0 || y < 0 || y >= safeHeight then return
-    for offset <- 0 until length do
-      drawPoint(x + offset, y, char)
+    for offset <- 0 until length do drawPoint(x + offset, y, char)
   }
 
   def drawVerticalLine(x: Int, y: Int, length: Int, char: Char = '│'): Unit = {
     if length <= 0 || x < 0 || x >= safeWidth then return
-    for offset <- 0 until length do
-      drawPoint(x, y + offset, char)
+    for offset <- 0 until length do drawPoint(x, y + offset, char)
   }
 
   def drawBox(
@@ -103,9 +98,7 @@ case class ConsoleCanvas(width: Int, height: Int, backgroundChar: Char = ' ') {
 
   def fillRect(x: Int, y: Int, width: Int, height: Int, char: Char = ' '): Unit = {
     if width <= 0 || height <= 0 then return
-    for row <- 0 until height do
-      for col <- 0 until width do
-        drawPoint(x + col, y + row, char)
+    for row <- 0 until height do for col <- 0 until width do drawPoint(x + col, y + row, char)
   }
 
   def drawRenderObj(renderObj: RenderObj): Unit = {

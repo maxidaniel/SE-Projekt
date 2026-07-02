@@ -1,5 +1,6 @@
 package de.htwg_konstanz.se.ui.gui
 
+import de.htwg_konstanz.se.controller.strategies.IStrategy
 import de.htwg_konstanz.se.models.*
 import de.htwg_konstanz.se.ui.gui.views.*
 import scalafx.collections.ObservableHashSet
@@ -17,8 +18,7 @@ object GuiViews {
        || :/\: || :(): || (\/) || :/\: || (\/) || :/\: || (\/) || :(): || :/\: |
        || (__) || ()() || :\/: || :\/: || :\/: || (__) || :\/: || ()() || (__) |
        || '--'P|| '--'R|| '--'E|| '--'S|| '--'I|| '--'D|| '--'E|| '--'N|| '--'T|
-       |`------'`------'`------'`------'`------'`------'`------'`------'`------'"""
-    .stripMargin.linesIterator.toVector
+       |`------'`------'`------'`------'`------'`------'`------'`------'`------'""".stripMargin.linesIterator.toVector
 
   def logoText: String = Logo.mkString("\n")
 
@@ -31,10 +31,10 @@ object GuiViews {
 
   def statusLabel(p: IGuiPresenter): Label = new Label(p.statusMessage) {
     wrapText = true
-    style = if p.isErrorMessage then
-      "-fx-padding: 10; -fx-background-color: #fecaca; -fx-background-radius: 6; -fx-text-fill: #991b1b;"
-    else
-      "-fx-padding: 10; -fx-background-color: #f3f5f8; -fx-background-radius: 6;"
+    style =
+      if p.isErrorMessage then
+        "-fx-padding: 10; -fx-background-color: #fecaca; -fx-background-radius: 6; -fx-text-fill: #991b1b;"
+      else "-fx-padding: 10; -fx-background-color: #f3f5f8; -fx-background-radius: 6;"
   }
 
   def titleLabel(text: String): Label = new Label(text) {
@@ -49,7 +49,9 @@ object GuiViews {
       new Label("Controls") {
         style = "-fx-font-size: 18px; -fx-font-weight: bold;"
       },
-      new Label("• Add players in the lobby.\n• Start with at least two players.\n• Follow the current table and player hands during the game.\n• Abort returns to the result screen.") {
+      new Label(
+        "• Add players in the lobby.\n• Start with at least two players.\n• Follow the current table and player hands during the game.\n• Abort returns to the result screen."
+      ) {
         wrapText = true
       }
     )
@@ -65,21 +67,37 @@ object GuiViews {
     )
   }
 
+  private def playerLabel(player: IPlayer, p: IGuiPresenter): String = {
+    val name = player.name
+    player.playerType.strategy match
+      case Some(strategy) => s"$name (${strategy.name})"
+      case None           => name
+  }
+
+  private def strategyLabel(player: IPlayer): String = {
+    player.playerType.strategy match
+      case Some(strategy) => strategy.name
+      case None           => ""
+  }
+
   def playerList(p: IGuiPresenter, game: Game, allowRemove: Boolean): VBox = {
     val entries = game.playerHands.toVector.sortBy(_._1.toString)
-    if entries.isEmpty then return new VBox {
-      spacing = 8
-      children = Seq(new Label("No players have joined yet."))
-    }
+    if entries.isEmpty then
+      return new VBox {
+        spacing = 8
+        children = Seq(new Label("No players have joined yet."))
+      }
 
-    val maxName = entries.map { case (player, _) => p.viewModel.displayName(player).length }.max
+    val maxName = entries.map { case (player, _) => player.name.length }.max
+    val maxStrategy = entries.map { case (player, _) => strategyLabel(player).length }.max
     val maxCount = entries.map { case (_, c) => s"${c.size} cards".length }.max
     val maxId = entries.map { case (id, _) => id.toString.take(8).length }.max
 
     new VBox {
       spacing = 8
       children = entries.map { (player, cards) =>
-        val name = p.viewModel.displayName(player)
+        val name = player.name
+        val strategy = strategyLabel(player)
         val cardCount = s"${cards.size} cards"
         val playerIdStr = player.id.toString.take(8)
 
@@ -91,6 +109,10 @@ object GuiViews {
               minWidth = (maxName + 2) * 7.5
               style = "-fx-font-weight: bold;"
             },
+            new Label(strategy) {
+              minWidth = (maxStrategy + 2) * 7.5
+              style = "-fx-text-fill: #6b7280;"
+            },
             new Label(cardCount) {
               minWidth = (maxCount + 2) * 7.5
             },
@@ -98,9 +120,11 @@ object GuiViews {
               minWidth = (maxId + 2) * 7.5
               style = "-fx-text-fill: #6b7280;"
             }
-          ) ++ (if allowRemove then Seq(new Button("Remove") {
-            onMouseClicked = _ => p.removePlayer(player.id)
-          }) else Seq.empty)
+          ) ++ (if allowRemove then
+                  Seq(new Button("Remove") {
+                    onMouseClicked = _ => p.removePlayer(player.id)
+                  })
+                else Seq.empty)
         }
       }
     }
@@ -108,19 +132,22 @@ object GuiViews {
 
   def scorePanel(p: IGuiPresenter, game: Game): VBox = {
     val entries = game.playerHands.toVector.sortBy(_._1.toString)
-    if entries.isEmpty then return new VBox {
-      spacing = 8
-      children = Seq(new Label("No scores yet."))
-    }
+    if entries.isEmpty then
+      return new VBox {
+        spacing = 8
+        children = Seq(new Label("No scores yet."))
+      }
 
-    val maxName = entries.map { case (player, _) => p.viewModel.displayName(player).length }.max
+    val maxName = entries.map { case (player, _) => player.name.length }.max
+    val maxStrategy = entries.map { case (player, _) => strategyLabel(player).length }.max
     val maxScore = entries.map { case (player, _) => s"${game.scoredRanks.getOrElse(player, 0)} pts".length }.max
     val targetScore = 11
 
     new VBox {
       spacing = 6
       children = entries.map { (player, _) =>
-        val name = p.viewModel.displayName(player)
+        val name = player.name
+        val strategy = strategyLabel(player)
         val score = game.scoredRanks.getOrElse(player, 0)
         val scoreProgress = math.min(score.toDouble / targetScore, 1.0)
 
@@ -131,6 +158,10 @@ object GuiViews {
             new Label(name) {
               minWidth = (maxName + 2) * 7.5
               style = "-fx-font-weight: bold;"
+            },
+            new Label(strategy) {
+              minWidth = (maxStrategy + 2) * 7.5
+              style = "-fx-text-fill: #6b7280;"
             },
             new ProgressBar() {
               progress = scoreProgress
@@ -153,27 +184,36 @@ object GuiViews {
       if isPlaying then
         game.currentPlayer match {
           case Some(player) => Vector(player -> game.playerHands.getOrElse(player, Vector.empty))
-          case None => Vector.empty
+          case None         => Vector.empty
         }
-      else
-        game.playerHands.toVector.sortBy(_._1.toString)
+      else game.playerHands.toVector.sortBy(_._1.toString)
 
-    if entries.isEmpty then return new VBox {
-      spacing = 12
-      children = Seq(new Label("No hands available."))
-    }
+    if entries.isEmpty then
+      return new VBox {
+        spacing = 12
+        children = Seq(new Label("No hands available."))
+      }
 
-    val maxName = entries.map { case (id, _) => p.viewModel.displayName(id).length }.max
+    val maxName = entries.map { case (id, _) => id.name.length }.max
 
     new VBox {
       spacing = 12
       children = entries.map { (playerId, cards) =>
+        val strategy = strategyLabel(playerId)
         new VBox {
           spacing = 6
           children = Seq(
-            new Label(p.viewModel.displayName(playerId)) {
-              minWidth = (maxName + 2) * 7.5
-              style = "-fx-font-weight: bold;"
+            new HBox {
+              spacing = 6
+              alignment = Pos.CenterLeft
+              children = Seq(
+                new Label(playerId.name) {
+                  style = "-fx-font-weight: bold;"
+                },
+                new Label(strategy) {
+                  style = "-fx-text-fill: #6b7280;"
+                }
+              )
             },
             cardFlow(p, cards, Some(playerId), selectedCards)
           )
@@ -182,7 +222,12 @@ object GuiViews {
     }
   }
 
-  def cardFlow(p: IGuiPresenter, cards: Seq[Card], playerId: Option[IPlayer], selectedCards: ObservableHashSet[Card]): Parent = new FlowPane {
+  def cardFlow(
+      p: IGuiPresenter,
+      cards: Seq[Card],
+      playerId: Option[IPlayer],
+      selectedCards: ObservableHashSet[Card]
+  ): Parent = new FlowPane {
     hgap = 8
     vgap = 8
     children =
@@ -190,7 +235,13 @@ object GuiViews {
       else cards.zipWithIndex.map { (card, index) => cardView(p, card, index, playerId, selectedCards) }
   }
 
-  def cardView(p: IGuiPresenter, card: Card, index: Int, playerId: Option[IPlayer], selectedCards: ObservableHashSet[Card]): VBox = {
+  def cardView(
+      p: IGuiPresenter,
+      card: Card,
+      index: Int,
+      playerId: Option[IPlayer],
+      selectedCards: ObservableHashSet[Card]
+  ): VBox = {
     val red = card.suit == CardSuit.Hearts || card.suit == CardSuit.Diamonds
     val isSelectable = playerId.isDefined
 
@@ -199,7 +250,8 @@ object GuiViews {
       spacing = 2
       minWidth = 56
       minHeight = 76
-      style = "-fx-border-color: #1f2937; -fx-border-radius: 6; -fx-background-radius: 6; -fx-background-color: white; -fx-padding: 6;"
+      style =
+        "-fx-border-color: #1f2937; -fx-border-radius: 6; -fx-background-radius: 6; -fx-background-color: white; -fx-padding: 6;"
       val defaultStyle: String = style.value
       scaleX = 1.0
       scaleY = 1.0
@@ -221,8 +273,7 @@ object GuiViews {
           cursor = Cursor.Hand
 
         onMouseExited = _ =>
-          if !selectedCards.contains(card) then
-            style = defaultStyle
+          if !selectedCards.contains(card) then style = defaultStyle
           scaleX = 1.0
           scaleY = 1.0
           cursor = Cursor.Default
@@ -233,7 +284,8 @@ object GuiViews {
             style = defaultStyle
           else
             selectedCards.add(card)
-            style = "-fx-border-color: #22c55e; -fx-border-radius: 6; -fx-background-radius: 6; -fx-background-color: #f0fdf4;"
+            style =
+              "-fx-border-color: #22c55e; -fx-border-radius: 6; -fx-background-radius: 6; -fx-background-color: #f0fdf4;"
     }
   }
 }

@@ -15,17 +15,17 @@ class StrategySpec extends AnyWordSpec {
     "play the lowest card that beats the last played" in {
       val strategy = PlayLowestPossibleCardStrategy()
       val cards = Vector(Card.FiveOfHearts, Card.QueenOfSpades, Card.KingOfDiamonds)
-      val lastPlayed = Card.FourOfHearts
+      val lastPlayed = Some(Card.FourOfHearts)
 
       strategy.canPlay(cards, lastPlayed) should be(true)
       val result = strategy.play(cards, lastPlayed)
-      result should be(Card.FiveOfHearts)
+      result should be(Some(Card.FiveOfHearts))
     }
 
     "report canPlay false when no cards beat lastPlayed" in {
       val strategy = PlayLowestPossibleCardStrategy()
       val cards = Vector(Card.SevenOfHearts, Card.FiveOfSpades, Card.TenOfDiamonds)
-      val lastPlayed = Card.QueenOfHearts
+      val lastPlayed = Some(Card.QueenOfHearts)
 
       strategy.canPlay(cards, lastPlayed) should be(false)
     }
@@ -33,7 +33,7 @@ class StrategySpec extends AnyWordSpec {
     "report canPlay false when all cards are lower than lastPlayed" in {
       val strategy = PlayLowestPossibleCardStrategy()
       val cards = Vector(Card.ThreeOfHearts, Card.FiveOfSpades, Card.QueenOfDiamonds)
-      val lastPlayed = Card.TwoOfHearts
+      val lastPlayed = Some(Card.TwoOfHearts)
 
       strategy.canPlay(cards, lastPlayed) should be(false)
     }
@@ -41,22 +41,31 @@ class StrategySpec extends AnyWordSpec {
     "report canPlay true when at least one card beats lastPlayed" in {
       val strategy = PlayLowestPossibleCardStrategy()
       val cards = Vector(Card.QueenOfHearts, Card.FiveOfSpades, Card.ThreeOfDiamonds)
-      val lastPlayed = Card.FourOfHearts
+      val lastPlayed = Some(Card.FourOfHearts)
 
       strategy.canPlay(cards, lastPlayed) should be(true)
       val result = strategy.play(cards, lastPlayed)
-      result should be(Card.FiveOfSpades)
+      result should be(Some(Card.FiveOfSpades))
     }
 
     "use playedCards parameter" in {
       val strategy = PlayLowestPossibleCardStrategy()
       val cards = Vector(Card.FiveOfHearts, Card.QueenOfSpades)
-      val lastPlayed = Card.FourOfHearts
+      val lastPlayed = Some(Card.FourOfHearts)
       val playedCards = Vector(Card.ThreeOfClubs)
 
       strategy.canPlay(cards, lastPlayed, playedCards) should be(true)
       val result = strategy.play(cards, lastPlayed, playedCards)
-      result should be(Card.FiveOfHearts)
+      result should be(Some(Card.FiveOfHearts))
+    }
+
+    "play lowest card when no lastPlayed" in {
+      val strategy = PlayLowestPossibleCardStrategy()
+      val cards = Vector(Card.FiveOfHearts, Card.QueenOfSpades, Card.KingOfDiamonds)
+
+      strategy.canPlay(cards, None) should be(true)
+      val result = strategy.play(cards, None)
+      result should be(Some(Card.FiveOfHearts))
     }
 
     "always accept exchange" in {
@@ -78,28 +87,30 @@ class StrategySpec extends AnyWordSpec {
     "play a card that beats the last played" in {
       val strategy = PlayRandomCardStrategy()
       val cards = Vector(Card.FiveOfHearts, Card.QueenOfSpades, Card.KingOfDiamonds)
-      val lastPlayed = Card.FourOfHearts
+      val lastPlayed = Some(Card.FourOfHearts)
 
       strategy.canPlay(cards, lastPlayed) should be(true)
       val result = strategy.play(cards, lastPlayed)
-      Game.canBeat(result, lastPlayed) should be(true)
+      result shouldBe defined
+      Game.canBeat(result.get, lastPlayed.get) should be(true)
     }
 
     "play one of the valid cards" in {
       val strategy = PlayRandomCardStrategy()
       val cards = Vector(Card.FiveOfHearts, Card.QueenOfSpades, Card.KingOfDiamonds)
-      val lastPlayed = Card.FourOfHearts
+      val lastPlayed = Some(Card.FourOfHearts)
 
       (1 to 100).foreach { _ =>
         val result = strategy.play(cards, lastPlayed)
-        cards should contain(result)
+        result shouldBe defined
+        cards should contain(result.get)
       }
     }
 
     "report canPlay false when no cards beat lastPlayed" in {
       val strategy = PlayRandomCardStrategy()
       val cards = Vector(Card.ThreeOfHearts, Card.FiveOfSpades)
-      val lastPlayed = Card.TwoOfHearts
+      val lastPlayed = Some(Card.TwoOfHearts)
 
       strategy.canPlay(cards, lastPlayed) should be(false)
     }
@@ -107,12 +118,25 @@ class StrategySpec extends AnyWordSpec {
     "use playedCards parameter" in {
       val strategy = PlayRandomCardStrategy()
       val cards = Vector(Card.FiveOfHearts, Card.QueenOfSpades, Card.KingOfDiamonds)
-      val lastPlayed = Card.FourOfHearts
+      val lastPlayed = Some(Card.FourOfHearts)
       val playedCards = Vector(Card.ThreeOfClubs)
 
       (1 to 100).foreach { _ =>
         val result = strategy.play(cards, lastPlayed, playedCards)
-        Game.canBeat(result, lastPlayed) should be(true)
+        result shouldBe defined
+        Game.canBeat(result.get, lastPlayed.get) should be(true)
+      }
+    }
+
+    "play a random card when no lastPlayed" in {
+      val strategy = PlayRandomCardStrategy()
+      val cards = Vector(Card.FiveOfHearts, Card.QueenOfSpades, Card.KingOfDiamonds)
+
+      strategy.canPlay(cards, None) should be(true)
+      (1 to 100).foreach { _ =>
+        val result = strategy.play(cards, None)
+        result shouldBe defined
+        cards should contain(result.get)
       }
     }
 
@@ -136,17 +160,17 @@ class StrategySpec extends AnyWordSpec {
     "play the highest card that beats the last played" in {
       val strategy = PlayBestCardStrategy()
       val cards = Vector(Card.FiveOfHearts, Card.QueenOfSpades, Card.KingOfDiamonds)
-      val lastPlayed = Card.FourOfHearts
+      val lastPlayed = Some(Card.FourOfHearts)
 
       strategy.canPlay(cards, lastPlayed) should be(true)
       val result = strategy.play(cards, lastPlayed)
-      result should be(Card.KingOfDiamonds)
+      result should be(Some(Card.KingOfDiamonds))
     }
 
     "report canPlay false when no cards beat lastPlayed" in {
       val strategy = PlayBestCardStrategy()
       val cards = Vector(Card.SevenOfHearts, Card.FiveOfSpades, Card.TenOfDiamonds)
-      val lastPlayed = Card.QueenOfHearts
+      val lastPlayed = Some(Card.QueenOfHearts)
 
       strategy.canPlay(cards, lastPlayed) should be(false)
     }
@@ -154,22 +178,31 @@ class StrategySpec extends AnyWordSpec {
     "play the single valid card when only one beats lastPlayed" in {
       val strategy = PlayBestCardStrategy()
       val cards = Vector(Card.ThreeOfHearts, Card.AceOfSpades, Card.FiveOfDiamonds)
-      val lastPlayed = Card.KingOfHearts
+      val lastPlayed = Some(Card.KingOfHearts)
 
       strategy.canPlay(cards, lastPlayed) should be(true)
       val result = strategy.play(cards, lastPlayed)
-      result should be(Card.AceOfSpades)
+      result should be(Some(Card.AceOfSpades))
     }
 
     "use playedCards parameter" in {
       val strategy = PlayBestCardStrategy()
       val cards = Vector(Card.FiveOfHearts, Card.QueenOfSpades, Card.KingOfDiamonds)
-      val lastPlayed = Card.FourOfHearts
+      val lastPlayed = Some(Card.FourOfHearts)
       val playedCards = Vector(Card.ThreeOfClubs)
 
       strategy.canPlay(cards, lastPlayed, playedCards) should be(true)
       val result = strategy.play(cards, lastPlayed, playedCards)
-      result should be(Card.KingOfDiamonds)
+      result should be(Some(Card.KingOfDiamonds))
+    }
+
+    "play highest card when no lastPlayed" in {
+      val strategy = PlayBestCardStrategy()
+      val cards = Vector(Card.FiveOfHearts, Card.QueenOfSpades, Card.KingOfDiamonds)
+
+      strategy.canPlay(cards, None) should be(true)
+      val result = strategy.play(cards, None)
+      result should be(Some(Card.KingOfDiamonds))
     }
 
     "accept exchange when offered cards are better than hand average" in {

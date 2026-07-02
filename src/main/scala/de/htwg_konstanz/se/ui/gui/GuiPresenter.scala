@@ -7,12 +7,14 @@ import de.htwg_konstanz.se.models.PlayerType.Computer
 
 /** Core GUI logic with no JavaFX dependencies.
   *
-  * @param controller  the game controller
-  * @param onRefresh   callback invoked when the view should be rebuilt
+  * @param controller
+  *   the game controller
+  * @param onRefresh
+  *   callback invoked when the view should be rebuilt
   */
 class GuiPresenter(
-  val controller: IController,
-  val onRefresh: () => Unit = () => ()
+    val controller: IController,
+    val onRefresh: () => Unit = () => ()
 ) extends IGuiPresenter {
   val viewModel: PresidentViewModel = PresidentViewModel(controller)
 
@@ -30,14 +32,12 @@ class GuiPresenter(
     val trimmed = name.trim
     val finalName = if trimmed.isEmpty then s"Player ${controller.playerCount + 1}" else trimmed
     controller.join(finalName)
-    controller.getPlayer(finalName).foreach(viewModel.rememberPlayer)
   }
 
   def addComputerPlayer(name: String, strategy: IStrategy): Unit = {
     val trimmed = name.trim
     val finalName = if trimmed.isEmpty then s"Bot ${controller.playerCount + 1}" else trimmed
     controller.joinComputer(finalName, strategy)
-    controller.getPlayer(finalName).foreach(viewModel.rememberPlayer)
   }
 
   def startGame(): Unit = controller.start()
@@ -63,6 +63,14 @@ class GuiPresenter(
 
   def passTrick(player: IPlayer): Unit = controller.passTrick(player)
 
+  def nextRound(): Unit = controller.nextRound()
+
+  def save(path: String): Unit = controller.save(path)
+
+  def load(path: String): Unit = controller.load(path)
+
+  def deleteSave(path: String): Unit = controller.deleteSave(path)
+
   def viewForGame(game: Game): View = viewModel.viewForGame(game)
 
   def handleEvent(event: GameEvent): Unit = {
@@ -75,7 +83,7 @@ class GuiPresenter(
     game.state == GameState.Playing && game.currentPlayer.exists { player =>
       player.playerType match
         case Computer(_) => true
-        case _ => false
+        case _           => false
     }
   }
 
@@ -86,14 +94,11 @@ class GuiPresenter(
         player.playerType match
           case Computer(strategy) =>
             val hand = game.playerHands.getOrElse(player, Vector.empty)
-            val lastPlayed = game.playedCards.lastOption.getOrElse(Card.ThreeOfHearts)
-            val isLeading = game.trickCount == 0 || game.playedCards.isEmpty
+            val lastPlayed = game.playedCards.lastOption
             val canPlayNow = strategy.canPlay(hand, lastPlayed, game.playedCards)
-            
-            if canPlayNow || isLeading then
-              controller.playCard(player)
-            else
-              controller.passTrick(player)
+
+            if canPlayNow then controller.playCard(player)
+            else controller.passTrick(player)
           case _ =>
       }
   }

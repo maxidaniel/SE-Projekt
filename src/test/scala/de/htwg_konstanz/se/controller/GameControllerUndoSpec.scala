@@ -1,5 +1,6 @@
 package de.htwg_konstanz.se.controller
 
+import de.htwg_konstanz.se.io.StubSaveManager
 import de.htwg_konstanz.se.models.*
 import de.htwg_konstanz.se.util.UndoManager
 import org.scalatest.OptionValues.*
@@ -8,7 +9,8 @@ import org.scalatest.wordspec.AnyWordSpec
 
 class GameControllerUndoSpec extends AnyWordSpec {
   "A GameController with Undo/Redo" should {
-    val controller = new GameController(new Game(), new UndoManager())
+    val stubSaveManager = new StubSaveManager()
+    val controller = new GameController(new Game(), new UndoManager(), stubSaveManager)
 
     "undo joining a player" in {
       controller.join("Alice")
@@ -27,19 +29,19 @@ class GameControllerUndoSpec extends AnyWordSpec {
       controller.join("Charlie")
       controller.join("Dave")
       controller.getGame.state should be(GameState.WaitingForPlayers)
-      
+
       controller.start()
       controller.getGame.state should be(GameState.Playing)
-      
+
       controller.undo()
       controller.getGame.state should be(GameState.WaitingForPlayers)
-      
+
       controller.redo()
       controller.getGame.state should be(GameState.Playing)
     }
 
     "undo playing a card" in {
-      val testController = new GameController(new Game(), new UndoManager())
+      val testController = new GameController(new Game(), new UndoManager(), stubSaveManager)
       testController.join("Alice")
       testController.join("Bob")
       testController.join("Charlie")
@@ -52,10 +54,10 @@ class GameControllerUndoSpec extends AnyWordSpec {
 
       testController.playCard(player, card)
       testController.getGame.playedCards should contain(card)
-      
+
       testController.undo()
-      testController.getGame.playedCards should not contain(card)
-      
+      testController.getGame.playedCards should not contain (card)
+
       testController.redo()
       testController.getGame.playedCards should contain(card)
     }

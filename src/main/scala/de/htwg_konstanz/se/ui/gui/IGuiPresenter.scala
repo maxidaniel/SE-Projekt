@@ -28,6 +28,11 @@ trait IGuiPresenter {
 
   def playSelectedCard(player: IPlayer, card: Card): Unit
   def passTrick(player: IPlayer): Unit
+  def nextRound(): Unit
+
+  def save(path: String): Unit
+  def load(path: String): Unit
+  def deleteSave(path: String): Unit
 
   def isComputerTurn: Boolean
   def triggerComputerPlay(): Unit

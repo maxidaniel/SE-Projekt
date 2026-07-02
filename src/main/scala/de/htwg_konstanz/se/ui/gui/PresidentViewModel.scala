@@ -13,17 +13,13 @@ class PresidentViewModel(@Inject controller: IController):
   var resultTitle: String = "Game finished"
   var isErrorMessage: Boolean = false
 
-  private var knownPlayers: Map[IPlayer, String] = Map.empty
-
   def handleEvent(event: GameEvent): Unit = event match
     case PlayerJoinEvent(player, game) =>
-      rememberPlayer(player)
-      statusMessage = s"${displayName(player)} joined the lobby."
+      statusMessage = s"${player.name} joined the lobby."
       currentView = viewForGame(game)
 
     case PlayerQuitEvent(player, game) =>
-      statusMessage = s"${displayName(player)} left the game."
-      knownPlayers -= player
+      statusMessage = s"${player.name} left the game."
       currentView = viewForGame(game)
 
     case GameStartedEvent(game) =>
@@ -36,18 +32,16 @@ class PresidentViewModel(@Inject controller: IController):
       currentView = View.Result
 
     case GameEndedEvent(game, winner) =>
-      rememberPlayer(winner)
       resultTitle = "Game finished"
-      statusMessage = s"${displayName(winner)} wins the game."
+      statusMessage = s"${winner.name} wins the game."
       currentView = View.Result
 
     case CardPlayedEvent(player, card, game) =>
-      statusMessage = s"${displayName(player)} played ${card.toString}."
+      statusMessage = s"${player.name} played ${card.toString}."
       currentView = viewForGame(game)
 
     case PassTrickEvent(player, game) =>
-      rememberPlayer(player)
-      statusMessage = s"${displayName(player)} passed."
+      statusMessage = s"${player.name} passed."
       currentView = viewForGame(game)
 
     case NextRoundEvent(game) =>
@@ -60,27 +54,21 @@ class PresidentViewModel(@Inject controller: IController):
 
     case TableClearedEvent(player, game, reason) =>
       val reasonText = reason match
-        case TableClearReason.BurnByTwo      => "Two played (burn)"
+        case TableClearReason.BurnByTwo       => "Two played (burn)"
         case TableClearReason.FourOfAKindBomb => "Four of a kind (bomb)"
-        case TableClearReason.TrickWon       => "All players passed"
+        case TableClearReason.TrickWon        => "All players passed"
       statusMessage = s"Table cleared: $reasonText"
       currentView = viewForGame(game)
 
     case GameErrorEvent(cause, error) =>
       isErrorMessage = true
       statusMessage = cause match
-        case PlayerJoinEvent(player, _)    => s"Could not join: ${error.exception.getMessage}"
-        case PlayerQuitEvent(player, _)   => s"Could not leave: ${error.exception.getMessage}"
-        case GameStartedEvent(_)           => s"Could not start game: ${error.exception.getMessage}"
+        case PlayerJoinEvent(player, _)       => s"Could not join: ${error.exception.getMessage}"
+        case PlayerQuitEvent(player, _)       => s"Could not leave: ${error.exception.getMessage}"
+        case GameStartedEvent(_)              => s"Could not start game: ${error.exception.getMessage}"
         case CardPlayedEvent(player, card, _) => s"Could not play card: ${error.exception.getMessage}"
-        case PassTrickEvent(player, _)     => s"Could not pass: ${error.exception.getMessage}"
-        case _                             => s"An error occurred: ${error.exception.getMessage}"
-
-  def rememberPlayer(player: IPlayer): Unit =
-    knownPlayers += (player -> player.name)
-
-  def displayName(player: IPlayer): String =
-    knownPlayers.getOrElse(player, "Unknown Player")
+        case PassTrickEvent(player, _)        => s"Could not pass: ${error.exception.getMessage}"
+        case _                                => s"An error occurred: ${error.exception.getMessage}"
 
   def viewForGame(game: Game, fallbackState: Option[GameState] = None): View =
     (fallbackState.getOrElse(game.state)) match

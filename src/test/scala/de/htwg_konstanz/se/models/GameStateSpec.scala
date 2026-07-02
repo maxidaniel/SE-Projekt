@@ -3,7 +3,7 @@ package de.htwg_konstanz.se.models
 import org.scalatest.TryValues.*
 import org.scalatest.matchers.should.Matchers.*
 import org.scalatest.wordspec.AnyWordSpec
-
+import play.api.libs.json.Json
 
 import java.util.UUID
 
@@ -27,7 +27,7 @@ class GameStateSpec extends AnyWordSpec {
     val bob = HumanPlayer("Bob")
     val charlie = HumanPlayer("Charlie")
     val dave = HumanPlayer("Dave")
-    
+
     "allow join" in {
       WaitingForPlayersState.canJoin should be(true)
     }
@@ -67,17 +67,29 @@ class GameStateSpec extends AnyWordSpec {
     }
 
     "transition start successfully with 4+ players" in {
-      val game = Game(Map(alice -> Vector.empty, bob -> Vector.empty, charlie -> Vector.empty, dave -> Vector.empty), Vector.empty, WaitingForPlayersState)
+      val game = Game(
+        Map(alice -> Vector.empty, bob -> Vector.empty, charlie -> Vector.empty, dave -> Vector.empty),
+        Vector.empty,
+        WaitingForPlayersState
+      )
       WaitingForPlayersState.transition(game, Start).isSuccess should be(true)
     }
 
     "transition start fail with fewer than 4 players" in {
-      val game = Game(Map(alice -> Vector.empty, bob -> Vector.empty, charlie -> Vector.empty), Vector.empty, WaitingForPlayersState)
+      val game = Game(
+        Map(alice -> Vector.empty, bob -> Vector.empty, charlie -> Vector.empty),
+        Vector.empty,
+        WaitingForPlayersState
+      )
       WaitingForPlayersState.transition(game, Start).isFailure should be(true)
     }
 
     "transition deal successfully with 4+ players" in {
-      val game = Game(Map(alice -> Vector.empty, bob -> Vector.empty, charlie -> Vector.empty, dave -> Vector.empty), Vector.empty, WaitingForPlayersState)
+      val game = Game(
+        Map(alice -> Vector.empty, bob -> Vector.empty, charlie -> Vector.empty, dave -> Vector.empty),
+        Vector.empty,
+        WaitingForPlayersState
+      )
       WaitingForPlayersState.transition(game, Deal).isSuccess should be(true)
     }
 
@@ -294,7 +306,12 @@ class GameStateSpec extends AnyWordSpec {
       val charlie = HumanPlayer("Charlie")
       val dave = HumanPlayer("Dave")
       val game = Game(
-        Map(alice -> Vector(Card.KingOfHearts), bob -> Vector(Card.AceOfSpades), charlie -> Vector(Card.QueenOfHearts), dave -> Vector(Card.JackOfHearts)),
+        Map(
+          alice -> Vector(Card.KingOfHearts),
+          bob -> Vector(Card.AceOfSpades),
+          charlie -> Vector(Card.QueenOfHearts),
+          dave -> Vector(Card.JackOfHearts)
+        ),
         Vector(Card.FiveOfClubs),
         PlayingState,
         Some(bob),
@@ -314,7 +331,12 @@ class GameStateSpec extends AnyWordSpec {
       val charlie = HumanPlayer("Charlie")
       val dave = HumanPlayer("Dave")
       val game = Game(
-        Map(alice -> Vector.empty, bob -> Vector(Card.AceOfSpades), charlie -> Vector(Card.QueenOfHearts), dave -> Vector(Card.JackOfHearts)),
+        Map(
+          alice -> Vector.empty,
+          bob -> Vector(Card.AceOfSpades),
+          charlie -> Vector(Card.QueenOfHearts),
+          dave -> Vector(Card.JackOfHearts)
+        ),
         Vector(Card.FiveOfClubs),
         PlayingState,
         Some(bob),
@@ -333,7 +355,12 @@ class GameStateSpec extends AnyWordSpec {
       val charlie = HumanPlayer("Charlie")
       val dave = HumanPlayer("Dave")
       val game = Game(
-        Map(alice -> Vector(Card.KingOfHearts), bob -> Vector(Card.AceOfSpades), charlie -> Vector(Card.QueenOfHearts), dave -> Vector(Card.JackOfHearts)),
+        Map(
+          alice -> Vector(Card.KingOfHearts),
+          bob -> Vector(Card.AceOfSpades),
+          charlie -> Vector(Card.QueenOfHearts),
+          dave -> Vector(Card.JackOfHearts)
+        ),
         Vector(Card.FiveOfClubs),
         PlayingState,
         Some(bob),
@@ -350,7 +377,12 @@ class GameStateSpec extends AnyWordSpec {
     "leadTrick fail when player does not have the card" in {
       val bob = HumanPlayer("Bob")
       val game = Game(
-        Map(alice -> Vector(Card.ThreeOfHearts), bob -> Vector(Card.FiveOfClubs), charlie -> Vector(Card.SixOfHearts), dave -> Vector(Card.SevenOfHearts)),
+        Map(
+          alice -> Vector(Card.ThreeOfHearts),
+          bob -> Vector(Card.FiveOfClubs),
+          charlie -> Vector(Card.SixOfHearts),
+          dave -> Vector(Card.SevenOfHearts)
+        ),
         Vector.empty,
         PlayingState,
         Some(alice),
@@ -364,7 +396,12 @@ class GameStateSpec extends AnyWordSpec {
     "leadTrick with card of different rank than requested" in {
       val bob = HumanPlayer("Bob")
       val game = Game(
-        Map(alice -> Vector(Card.ThreeOfHearts, Card.FourOfHearts), bob -> Vector(Card.FiveOfClubs), charlie -> Vector(Card.SixOfHearts), dave -> Vector(Card.SevenOfHearts)),
+        Map(
+          alice -> Vector(Card.ThreeOfHearts, Card.FourOfHearts),
+          bob -> Vector(Card.FiveOfClubs),
+          charlie -> Vector(Card.SixOfHearts),
+          dave -> Vector(Card.SevenOfHearts)
+        ),
         Vector.empty,
         PlayingState,
         Some(alice),
@@ -415,6 +452,26 @@ class GameStateSpec extends AnyWordSpec {
         Some(alice)
       )
       PlayingState.transition(game, PlayCard(bob, Card.FiveOfHearts)).isFailure should be(true)
+    }
+
+    "respondToTrick fail when card does not outrank last played" in {
+      val bob = HumanPlayer("Bob")
+      val charlie = HumanPlayer("Charlie")
+      val game = Game(
+        Map(
+          alice -> Vector(Card.FiveOfClubs),
+          bob -> Vector(Card.SixOfHearts),
+          charlie -> Vector(Card.SevenOfHearts),
+          dave -> Vector(Card.EightOfHearts)
+        ),
+        Vector(Card.FiveOfClubs, Card.AceOfClubs),
+        PlayingState,
+        Some(bob),
+        2,
+        Some(CardRank.Five),
+        Some(alice)
+      )
+      PlayingState.transition(game, PlayCard(bob, Card.SixOfHearts)).isFailure should be(true)
     }
   }
 
@@ -524,7 +581,12 @@ class GameStateSpec extends AnyWordSpec {
       val charlie = HumanPlayer("Charlie")
       val dave = HumanPlayer("Dave")
       val game = Game(
-        Map(alice -> Vector(Card.FiveOfClubs), bob -> Vector(Card.SixOfHearts), charlie -> Vector(Card.SevenOfHearts), dave -> Vector(Card.EightOfHearts)),
+        Map(
+          alice -> Vector(Card.FiveOfClubs),
+          bob -> Vector(Card.SixOfHearts),
+          charlie -> Vector(Card.SevenOfHearts),
+          dave -> Vector(Card.EightOfHearts)
+        ),
         Vector.empty,
         GameState.Ended,
         None,
@@ -537,6 +599,95 @@ class GameStateSpec extends AnyWordSpec {
         Vector(alice, bob)
       )
       game.nextRound().isSuccess should be(true)
+    }
+
+    "succeed NextRound with full exchange (4 finishers)" in {
+      val bob = HumanPlayer("Bob")
+      val charlie = HumanPlayer("Charlie")
+      val dave = HumanPlayer("Dave")
+      val game = Game(
+        Map(
+          alice -> Vector(Card.ThreeOfHearts, Card.FourOfHearts, Card.FiveOfHearts),
+          bob -> Vector(Card.KingOfHearts, Card.AceOfHearts, Card.TwoOfHearts),
+          charlie -> Vector(Card.SixOfHearts, Card.SevenOfHearts),
+          dave -> Vector(Card.TenOfHearts, Card.JackOfHearts)
+        ),
+        Vector.empty,
+        GameState.Ended,
+        None,
+        0,
+        None,
+        None,
+        Set.empty,
+        Map.empty,
+        1,
+        Vector(alice, bob, charlie, dave)
+      )
+      val result = game.nextRound().success.value
+      result.state should be(PlayingState)
+      result.roundNumber should be(2)
+      result.scoredRanks(alice) should be(2)
+      result.scoredRanks(bob) should be(1)
+      result.scoredRanks(charlie) should be(0)
+      result.scoredRanks(dave) should be(0)
+      result.finishOrder should be(Vector.empty)
+      result.playerHands.values.map(_.size).sum should be(Card.standardDeckCards.size)
+    }
+
+    "fail NextRound when game is over (someone has 11+ points)" in {
+      val bob = HumanPlayer("Bob")
+      val charlie = HumanPlayer("Charlie")
+      val dave = HumanPlayer("Dave")
+      val game = Game(
+        Map(
+          alice -> Vector(Card.FiveOfClubs),
+          bob -> Vector(Card.SixOfHearts),
+          charlie -> Vector(Card.SevenOfHearts),
+          dave -> Vector(Card.EightOfHearts)
+        ),
+        Vector.empty,
+        GameState.Ended,
+        None,
+        0,
+        None,
+        None,
+        Set.empty,
+        Map(alice -> 11),
+        1,
+        Vector(alice)
+      )
+      game.nextRound().isFailure should be(true)
+    }
+  }
+
+  "GameState JSON serialization" should {
+    "serialize and deserialize all states" in {
+      for state <- GameState.values do
+        val json = Json.toJson(state)
+        val restored = json.as[GameState]
+        restored should be(state)
+    }
+
+    "fail on unknown state string" in {
+      val json = play.api.libs.json.JsString("Unknown")
+      json.validate[GameState].isError should be(true)
+    }
+
+    "fail on non-string input" in {
+      val json = play.api.libs.json.JsNumber(42)
+      json.validate[GameState].isError should be(true)
+    }
+  }
+
+  "GameState XML serialization" should {
+    "toXml and fromXml all states" in {
+      for state <- GameState.values do
+        val xml = GameState.toXml(state)
+        GameState.fromXml(xml) should be(state)
+    }
+
+    "throw on unknown state text" in {
+      an[IllegalArgumentException] should be thrownBy GameState.fromXml(scala.xml.Text("Unknown"))
     }
   }
 }

@@ -25,10 +25,7 @@ case class TuiReisen @Inject() (controller: IController) extends Listener {
        || :/\: || :(): || (\/) || :/\: || (\/) || :/\: || (\/) || :(): || :/\: |
        || (__) || ()() || :\/: || :\/: || :\/: || (__) || :\/: || ()() || (__) |
        || '--'P|| '--'R|| '--'E|| '--'S|| '--'I|| '--'D|| '--'E|| '--'N|| '--'T|
-       |`------'`------'`------'`------'`------'`------'`------'`------'`------'"""
-      .stripMargin
-      .linesIterator
-      .toVector
+       |`------'`------'`------'`------'`------'`------'`------'`------'`------'""".stripMargin.linesIterator.toVector
 
   private var shouldClose: Boolean = false
   private var renderScale: Int = 1
@@ -36,16 +33,22 @@ case class TuiReisen @Inject() (controller: IController) extends Listener {
   private val terminal: Terminal = TerminalBuilder.builder().system(true).build()
   private val renderer: TerminalRenderer = TerminalRenderer(terminal)
 
-  terminal.handle(Terminal.Signal.INT, _ => {
-    terminal.writer().println("Exiting")
-    terminal.flush()
+  terminal.handle(
+    Terminal.Signal.INT,
+    _ => {
+      terminal.writer().println("Exiting")
+      terminal.flush()
 
-    controller.exit()
-  })
+      controller.exit()
+    }
+  )
 
-  terminal.handle(Terminal.Signal.WINCH, _ => {
-    renderer.windowSizeChanged()
-  })
+  terminal.handle(
+    Terminal.Signal.WINCH,
+    _ => {
+      renderer.windowSizeChanged()
+    }
+  )
 
   renderer.initialize()
 
@@ -71,6 +74,12 @@ case class TuiReisen @Inject() (controller: IController) extends Listener {
     }
     keyMap.bind("continue-turn", "\t")
     keyMap.bind("pass", "p")
+    keyMap.bind("next-round", "n")
+    keyMap.bind("next-round", "N")
+    keyMap.bind("save", "s")
+    keyMap.bind("save", "S")
+    keyMap.bind("load", "l")
+    keyMap.bind("load", "L")
 
     renderer.transitionTo(TuiView.Splash, buildCanvas(Vector(centeredObject(logo))))
     Thread.sleep(2500)
@@ -103,6 +112,15 @@ case class TuiReisen @Inject() (controller: IController) extends Listener {
         case "pass" =>
           handlePass(controller.getGame)
 
+        case "next-round" =>
+          handleNextRound()
+
+        case "save" =>
+          handleSave()
+
+        case "load" =>
+          handleLoad()
+
         case _ if operation.startsWith("card-") =>
           val index = operation.drop(5).toInt
           handleCardPlay(controller.getGame, index)
@@ -123,7 +141,7 @@ case class TuiReisen @Inject() (controller: IController) extends Listener {
   override def onEvent(event: GameEvent): Unit = {
     event match {
       case GameExitEvent => shouldClose = true
-      case _ => refresh()
+      case _             => refresh()
     }
   }
 
@@ -151,7 +169,7 @@ case class TuiReisen @Inject() (controller: IController) extends Listener {
       case Playing =>
         game.currentPlayer match {
           case Some(currentPlayer) => controller.playCard(currentPlayer, index)
-          case None =>
+          case None                =>
         }
       case _ =>
     }
@@ -162,7 +180,7 @@ case class TuiReisen @Inject() (controller: IController) extends Listener {
       case Playing =>
         game.currentPlayer match {
           case Some(currentPlayer) => controller.playCard(currentPlayer)
-          case None =>
+          case None                =>
         }
       case _ =>
     }
@@ -173,10 +191,47 @@ case class TuiReisen @Inject() (controller: IController) extends Listener {
       case Playing =>
         game.currentPlayer match {
           case Some(currentPlayer) => controller.passTrick(currentPlayer)
-          case None =>
+          case None                =>
         }
       case _ =>
     }
+  }
+
+  private[tui] def handleNextRound(): Unit = {
+    controller.getGame.state match {
+      case Ended => controller.nextRound()
+      case _     =>
+    }
+  }
+
+  private[tui] def handleSave(): Unit = {
+    terminal.writer().println("Save game (enter path, default: save.json):")
+    terminal.flush()
+    val reader = terminal.reader()
+    val path = new StringBuilder()
+    var c = reader.read()
+    while c != '\n' && c != '\r' && c != -1 do
+      path.append(c.toChar)
+      c = reader.read()
+    val savePath = if path.isEmpty then "save.json" else path.toString
+    controller.save(savePath)
+    terminal.writer().println(s"Game saved to $savePath")
+    terminal.flush()
+  }
+
+  private[tui] def handleLoad(): Unit = {
+    terminal.writer().println("Load game (enter path, default: save.json):")
+    terminal.flush()
+    val reader = terminal.reader()
+    val path = new StringBuilder()
+    var c = reader.read()
+    while c != '\n' && c != '\r' && c != -1 do
+      path.append(c.toChar)
+      c = reader.read()
+    val loadPath = if path.isEmpty then "save.json" else path.toString
+    controller.load(loadPath)
+    terminal.writer().println(s"Game loaded from $loadPath")
+    terminal.flush()
   }
 
   private[tui] def renderObjsForState(game: Game): (TuiView, Vector[RenderObj]) = {
@@ -222,7 +277,7 @@ case class TuiReisen @Inject() (controller: IController) extends Listener {
 
         val turnInfo = game.currentPlayer match {
           case Some(player) => Vector(s"Current turn: ${player.name}")
-          case None => Vector("Current turn: ?")
+          case None         => Vector("Current turn: ?")
         }
 
         val controls = Vector(
@@ -240,12 +295,28 @@ case class TuiReisen @Inject() (controller: IController) extends Listener {
             RenderObj(cardsX, cardsY, cardRender.lines)
           ) ++ playersPanel
         )
-      case e => (
-        TuiView.MainMenu,
-        Vector(
-          RenderObj(2, 1, Vector(s"Unhandled game state: $e"))
-        ) ++ playersPanel
-      )
+      case Ended =>
+        val winner = game.finishOrder.headOption.map(_.name).getOrElse("Unknown")
+        val scores = game.scoredRanks.toSeq.sortBy(-_._2).map { case (p, s) => s"${p.name}: $s" }.mkString(", ")
+        val roundInfo = Vector(
+          s"Round ${game.roundNumber} ended",
+          s"Winner: $winner",
+          s"Scores: $scores",
+          "n: Next round  s: Save  q: Quit"
+        )
+        (
+          TuiView.MainMenu,
+          Vector(
+            RenderObj(2, 1, roundInfo)
+          ) ++ playersPanel
+        )
+      case e =>
+        (
+          TuiView.MainMenu,
+          Vector(
+            RenderObj(2, 1, Vector(s"Unhandled game state: $e"))
+          ) ++ playersPanel
+        )
     }
   }
 
@@ -270,10 +341,9 @@ case class TuiReisen @Inject() (controller: IController) extends Listener {
       if isPlaying then
         game.currentPlayer match {
           case Some(player) => Vector(player)
-          case None => Vector.empty
+          case None         => Vector.empty
         }
-      else
-        game.playerHands.keys.toVector
+      else game.playerHands.keys.toVector
 
     val rows =
       if playersToShow.isEmpty then
@@ -287,10 +357,13 @@ case class TuiReisen @Inject() (controller: IController) extends Listener {
           val cards = game.playerHands.getOrElse(player, Vector.empty)
           val cardsText =
             if cards.isEmpty then "-"
-            else cards.zipWithIndex.map { case (card, cardIndex) =>
-              val marker = if (game.currentPlayer.contains(player)) "*" else " "
-              s"[$cardIndex:$marker]${card.toString}"
-            }.mkString(" ")
+            else
+              cards.zipWithIndex
+                .map { case (card, cardIndex) =>
+                  val marker = if (game.currentPlayer.contains(player)) "*" else " "
+                  s"[$cardIndex:$marker]${card.toString}"
+                }
+                .mkString(" ")
           val playerName = s"${player.name} ${player.toString.take(8)}"
 
           Vector(

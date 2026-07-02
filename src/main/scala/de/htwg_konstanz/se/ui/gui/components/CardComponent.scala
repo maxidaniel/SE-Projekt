@@ -17,8 +17,7 @@ object CardComponent {
   private val BackInnerBorderColor: Color = Color.web("#2a5a9b")
 }
 
-class CardComponent(val card: Card, var faceDown: Boolean = false)
-    extends StackPane {
+class CardComponent(val card: Card, var faceDown: Boolean = false) extends StackPane {
 
   import CardComponent._
 
@@ -60,8 +59,7 @@ class CardComponent(val card: Card, var faceDown: Boolean = false)
 
   private def createFrontPane(): BorderPane =
     new BorderPane {
-      style =
-        s"-fx-background-color: white;" +
+      style = s"-fx-background-color: white;" +
         s"-fx-background-radius: $CornerSize;" +
         s"-fx-border-color: #bdc3c7;" +
         s"-fx-border-radius: $CornerSize;" +
@@ -125,8 +123,7 @@ class CardComponent(val card: Card, var faceDown: Boolean = false)
 
   private def createBackPane(): BorderPane =
     new BorderPane {
-      style =
-        s"-fx-background-color: white;" +
+      style = s"-fx-background-color: white;" +
         s"-fx-background-radius: $CornerSize;" +
         s"-fx-border-color: $BackBorderColor;" +
         s"-fx-border-radius: $CornerSize;" +
@@ -142,8 +139,7 @@ class CardComponent(val card: Card, var faceDown: Boolean = false)
 
         children = Seq(
           new BorderPane {
-            style =
-              s"-fx-background-color: transparent;" +
+            style = s"-fx-background-color: transparent;" +
               s"-fx-background-radius: ${CornerSize - 4};" +
               s"-fx-border-color: $BackInnerBorderColor;" +
               s"-fx-border-radius: ${CornerSize - 4};" +

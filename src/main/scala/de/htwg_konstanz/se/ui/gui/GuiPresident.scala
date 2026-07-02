@@ -15,7 +15,7 @@ import scalafx.util.Duration
 
 import scala.compiletime.uninitialized
 
-case class GuiPresident @Inject()(controller: IController) extends Listener, JFXApp3 {
+case class GuiPresident @Inject() (controller: IController) extends Listener, JFXApp3 {
   controller.add(this)
 
   private val presenter = new GuiPresenter(
@@ -29,9 +29,10 @@ case class GuiPresident @Inject()(controller: IController) extends Listener, JFX
 
   override def onEvent(event: GameEvent): Unit = event match {
     case GameExitEvent => Platform.exit()
-    case _ => runOnFxThread {
-      presenter.handleEvent(event)
-    }
+    case _             =>
+      runOnFxThread {
+        presenter.handleEvent(event)
+      }
   }
 
   private def refreshView(): Unit = {
@@ -92,8 +93,7 @@ case class GuiPresident @Inject()(controller: IController) extends Listener, JFX
 
   private def splashView(): Parent = {
     splashLabel = new Label(GuiViews.logoText) {
-      style =
-        "-fx-font-family: 'Courier New', monospace;" +
+      style = "-fx-font-family: 'Courier New', monospace;" +
         "-fx-font-size: 11px;" +
         "-fx-text-fill: #1f2937;" +
         "-fx-background-color: white;" +

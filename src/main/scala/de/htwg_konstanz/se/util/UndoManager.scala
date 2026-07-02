@@ -21,7 +21,7 @@ case class UndoManager(undoStack: List[Command] = Nil, redoStack: List[Command] 
 
   override def undoStep(): UndoManager = {
     undoStack match {
-      case Nil => this
+      case Nil          => this
       case head :: tail =>
         head.undoStep()
         copy(undoStack = tail, redoStack = head :: redoStack)
@@ -30,7 +30,7 @@ case class UndoManager(undoStack: List[Command] = Nil, redoStack: List[Command] 
 
   override def redoStep(): UndoManager = {
     redoStack match {
-      case Nil => this
+      case Nil          => this
       case head :: tail =>
         head.redoStep()
         copy(undoStack = head :: undoStack, redoStack = tail)

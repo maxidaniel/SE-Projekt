@@ -1,6 +1,11 @@
 package de.htwg_konstanz.se.ui.gui.views
 
-import de.htwg_konstanz.se.controller.strategies.{PlayBestCardStrategy, PlayLowestPossibleCardStrategy, PlayRandomCardStrategy}
+import de.htwg_konstanz.se.controller.strategies.{
+  IStrategy,
+  PlayBestCardStrategy,
+  PlayLowestPossibleCardStrategy,
+  PlayRandomCardStrategy
+}
 import de.htwg_konstanz.se.models.*
 import de.htwg_konstanz.se.ui.gui.{GuiViews, IGuiPresenter, View}
 import scalafx.collections.ObservableBuffer
@@ -16,12 +21,11 @@ case class LobbyView(p: IGuiPresenter) extends BorderPane {
   var titleLabel: Label = GuiViews.titleLabel("Lobby")
   var statusLbl: Label = GuiViews.statusLabel(p)
   var sep: Separator = new Separator()
-  
+
   var nameInput: TextField = new TextField {
     promptText = "Player name"
     prefColumnCount = 24
   }
-
 
   var addButton: Button = new Button("Add Player") {
     onMouseClicked = _ => {
@@ -42,14 +46,19 @@ case class LobbyView(p: IGuiPresenter) extends BorderPane {
   var backToMenuButton: Button = new Button("Back to Menu") { onMouseClicked = _ => p.navigateTo(View.Menu) }
 
   private def createStrategyComboBox(): ComboBox[String] = new ComboBox[String] {
-    items = ObservableBuffer("Lowest possible card", "Random card", "Best play")
+    items = ObservableBuffer("Lowest possible card", "Random card", "Best play", "Random")
     value = "Lowest possible card"
   }
 
   private def getStrategy(name: String) = name match {
     case "Random card" => PlayRandomCardStrategy()
-    case "Best play" => PlayBestCardStrategy()
-    case _ => PlayLowestPossibleCardStrategy()
+    case "Best play"   => PlayBestCardStrategy()
+    case _             => PlayLowestPossibleCardStrategy()
+  }
+
+  private def getRandomStrategy(): IStrategy = {
+    val strategies = Vector(PlayLowestPossibleCardStrategy(), PlayRandomCardStrategy(), PlayBestCardStrategy())
+    strategies(scala.util.Random.nextInt(strategies.length))
   }
 
   var addComputerButton: Button = new Button("Add Computer Player") {
@@ -80,12 +89,15 @@ case class LobbyView(p: IGuiPresenter) extends BorderPane {
 
       dialog.resultConverter = {
         case ButtonType.OK => true
-        case _ => false
+        case _             => false
       }
 
       val result = dialog.showAndWait()
       result match {
-        case Some(true) => p.addComputerPlayer(nameField.text.value.trim, getStrategy(strategyBox.value.value))
+        case Some(true) =>
+          val selectedStrategy = strategyBox.value.value
+          val strategy = if selectedStrategy == "Random" then getRandomStrategy() else getStrategy(selectedStrategy)
+          p.addComputerPlayer(nameField.text.value.trim, strategy)
         case _ =>
       }
     }
@@ -126,7 +138,7 @@ case class LobbyView(p: IGuiPresenter) extends BorderPane {
 
       dialog.resultConverter = {
         case ButtonType.OK => true
-        case _ => false
+        case _             => false
       }
 
       val result = dialog.showAndWait()
@@ -134,9 +146,11 @@ case class LobbyView(p: IGuiPresenter) extends BorderPane {
         case Some(true) =>
           val count = countSpinner.value.value
           val prefix = prefixField.text.value.trim
-          val strategy = getStrategy(strategyBox.value.value)
+          val selectedStrategy = strategyBox.value.value
+          val offset = p.controller.playerCount
           for i <- 1 to count do
-            p.addComputerPlayer(s"$prefix $i", strategy)
+            val strategy = if selectedStrategy == "Random" then getRandomStrategy() else getStrategy(selectedStrategy)
+            p.addComputerPlayer(s"$prefix ${offset + i}", strategy)
         case _ =>
       }
     }

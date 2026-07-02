@@ -2,6 +2,7 @@ package de.htwg_konstanz.se.controller
 
 import com.google.inject.Inject
 import de.htwg_konstanz.se.controller.strategies.IStrategy
+import de.htwg_konstanz.se.io.ISaveManager
 import de.htwg_konstanz.se.models.*
 import de.htwg_konstanz.se.models.PlayerType.Computer
 import de.htwg_konstanz.se.util.{Command, Provider, UndoManager}
@@ -15,11 +16,11 @@ trait IController extends Provider {
   def joinComputer(name: String, strategy: IStrategy): Unit
   def quit(uuid: UUID): Unit
   def start(): Unit
-  
+
   def playCard(player: IPlayer): Unit
   def playCard(player: IPlayer, card: Card): Unit
   def playCard(player: IPlayer, index: Int): Unit
-  
+
   def passTrick(player: IPlayer): Unit
   def abort(): Unit
   def undo(): Unit
@@ -34,9 +35,17 @@ trait IController extends Provider {
   def getPlayer(uuid: UUID): Option[IPlayer]
   def players: Seq[IPlayer]
   def playerCount: Int
+
+  def save(path: String): Unit
+  def load(path: String): Unit
+  def deleteSave(path: String): Unit
 }
 
-class GameController @Inject() (private var game: Game, private var undoManager: UndoManager) extends IController {
+class GameController @Inject() (
+    private var game: Game,
+    private var undoManager: UndoManager,
+    private val saveManager: ISaveManager
+) extends IController {
   def join(name: String): Unit = {
     val player = HumanPlayer(name)
     undoManager = undoManager.doStep(new JoinCommand(game, player))
@@ -50,7 +59,12 @@ class GameController @Inject() (private var game: Game, private var undoManager:
   def quit(uuid: UUID): Unit = {
     val player = getPlayer(uuid)
     if player.isEmpty then {
-      notifyEvent(GameErrorEvent(PlayerQuitEvent(UnknownPlayer, game), Failure(new Exception(s"The player with id $uuid is not part of the game."))))
+      notifyEvent(
+        GameErrorEvent(
+          PlayerQuitEvent(UnknownPlayer, game),
+          Failure(new Exception(s"The player with id $uuid is not part of the game."))
+        )
+      )
     } else {
       undoManager = undoManager.doStep(new QuitCommand(game, player.get))
     }
@@ -70,10 +84,12 @@ class GameController @Inject() (private var game: Game, private var undoManager:
         val card = hand(index)
         playCard(player, card)
       case _ =>
-        notifyEvent(GameErrorEvent(
-          CardPlayedEvent(player, Card.Unknown, game),
-          Failure(new Exception(s"Invalid card index $index"))
-        ))
+        notifyEvent(
+          GameErrorEvent(
+            CardPlayedEvent(player, Card.Unknown, game),
+            Failure(new Exception(s"Invalid card index $index"))
+          )
+        )
     }
   }
 
@@ -85,25 +101,33 @@ class GameController @Inject() (private var game: Game, private var undoManager:
             val lastPlayed = game.playedCards.lastOption
             player.playerType match {
               case Computer(strategy) =>
-                val card = strategy.play(hand, lastPlayed.getOrElse(Card.ThreeOfHearts), game.playedCards)
-                playCard(player, card)
+                val card = strategy.play(hand, lastPlayed, game.playedCards)
+                card match
+                  case Some(c) => playCard(player, c)
+                  case None    => passTrick(player)
               case _ =>
-                notifyEvent(GameErrorEvent(
-                  CardPlayedEvent(player, Card.Unknown, game),
-                  Failure(new Exception("Only computer players can use playCard(IPlayer)"))
-                ))
+                notifyEvent(
+                  GameErrorEvent(
+                    CardPlayedEvent(player, Card.Unknown, game),
+                    Failure(new Exception("Only computer players can use playCard(IPlayer)"))
+                  )
+                )
             }
           case _ =>
-            notifyEvent(GameErrorEvent(
-              CardPlayedEvent(player, Card.Unknown, game),
-              Failure(new Exception("Not this player's turn"))
-            ))
+            notifyEvent(
+              GameErrorEvent(
+                CardPlayedEvent(player, Card.Unknown, game),
+                Failure(new Exception("Not this player's turn"))
+              )
+            )
         }
       case None =>
-        notifyEvent(GameErrorEvent(
-          CardPlayedEvent(player, Card.Unknown, game),
-          Failure(new Exception("Player has no cards"))
-        ))
+        notifyEvent(
+          GameErrorEvent(
+            CardPlayedEvent(player, Card.Unknown, game),
+            Failure(new Exception("Player has no cards"))
+          )
+        )
     }
   }
 
@@ -112,16 +136,23 @@ class GameController @Inject() (private var game: Game, private var undoManager:
     game.passTrick(player) match {
       case Success(g) =>
         game = g
-        notifyEvent(PassTrickEvent(player, game))
-        if (oldGame.playedCards.nonEmpty && g.playedCards.isEmpty) {
-          val leader = g.currentPlayer.getOrElse(player)
-          notifyEvent(TableClearedEvent(leader, game, TableClearReason.TrickWon))
+        if (g.state == EndedState) {
+          val winner = g.finishOrder.headOption.getOrElse(player)
+          notifyEvent(GameEndedEvent(g, winner))
+        } else {
+          notifyEvent(PassTrickEvent(player, game))
+          if (oldGame.playedCards.nonEmpty && g.playedCards.isEmpty) {
+            val leader = g.currentPlayer.getOrElse(player)
+            notifyEvent(TableClearedEvent(leader, game, TableClearReason.TrickWon))
+          }
         }
       case Failure(f) =>
-        notifyEvent(GameErrorEvent(
-          PassTrickEvent(player, game),
-          Failure(f)
-        ))
+        notifyEvent(
+          GameErrorEvent(
+            PassTrickEvent(player, game),
+            Failure(f)
+          )
+        )
     }
   }
 
@@ -131,10 +162,12 @@ class GameController @Inject() (private var game: Game, private var undoManager:
         game = g
         notifyEvent(NextRoundEvent(game))
       case Failure(f) =>
-        notifyEvent(GameErrorEvent(
-          GameEndedEvent(game, game.finishOrder.headOption.getOrElse(UnknownPlayer)),
-          Failure(f)
-        ))
+        notifyEvent(
+          GameErrorEvent(
+            GameEndedEvent(game, game.finishOrder.headOption.getOrElse(UnknownPlayer)),
+            Failure(f)
+          )
+        )
     }
   }
 
@@ -284,14 +317,42 @@ class GameController @Inject() (private var game: Game, private var undoManager:
     notifyEvent(GameChangedEvent(game))
   }
 
+  def save(path: String): Unit = {
+    saveManager.save(game, path) match {
+      case Success(_) => notifyEvent(GameChangedEvent(game))
+      case Failure(f) => notifyEvent(GameErrorEvent(GameChangedEvent(game), Failure(f)))
+    }
+  }
+
+  def load(path: String): Unit = {
+    saveManager.load(path) match {
+      case Success(loadedGame) =>
+        game = loadedGame
+        undoManager = UndoManager()
+        notifyEvent(GameChangedEvent(game))
+      case Failure(f) => notifyEvent(GameErrorEvent(GameChangedEvent(game), Failure(f)))
+    }
+  }
+
+  def deleteSave(path: String): Unit = {
+    saveManager.deleteSave(path) match {
+      case Success(_) => ()
+      case Failure(f) => notifyEvent(GameErrorEvent(GameChangedEvent(game), Failure(f)))
+    }
+  }
+
   def exit(): Unit = notifyEvent(GameExitEvent)
 
   private def notifyTableClearedIfNeeded(oldGame: Game, newGame: Game, player: IPlayer, card: Card): Unit = {
     if (oldGame.playedCards.nonEmpty && newGame.playedCards.isEmpty) {
-      val reason = if (Game.isBurnCard(card)) TableClearReason.BurnByTwo
-                   else TableClearReason.TrickWon
+      val reason =
+        if (Game.isBurnCard(card)) TableClearReason.BurnByTwo
+        else TableClearReason.TrickWon
       notifyEvent(TableClearedEvent(player, game, reason))
-    } else if (oldGame.playedCards.isEmpty && newGame.playedCards.isEmpty && newGame.trickCount == 0 && newGame.currentPlayer.contains(player)) {
+    } else if (
+      oldGame.playedCards.isEmpty && newGame.playedCards.isEmpty && newGame.trickCount == 0 && newGame.currentPlayer
+        .contains(player)
+    ) {
       notifyEvent(TableClearedEvent(player, game, TableClearReason.FourOfAKindBomb))
     }
   }

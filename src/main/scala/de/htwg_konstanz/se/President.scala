@@ -25,13 +25,15 @@ given CommandLineParser.FromString[SaveFormat] with
 object President {
   def main(args: Array[String]): Unit = {
 
-    val mode = if args contains "--gui" then GuiMode.Gui
-    else if args contains "--tui" then GuiMode.Tui
-    else GuiMode.Gui
+    val mode =
+      if args contains "--gui" then GuiMode.Gui
+      else if args contains "--tui" then GuiMode.Tui
+      else GuiMode.Gui
 
-    val saveFormat = if args contains "--json" then SaveFormat.Json
-    else if args contains "--xml" then SaveFormat.Xml
-    else SaveFormat.Json
+    val saveFormat =
+      if args contains "--json" then SaveFormat.Json
+      else if args contains "--xml" then SaveFormat.Xml
+      else SaveFormat.Json
 
     val injector = Guice.createInjector(new PresidentModule(mode, saveFormat))
 

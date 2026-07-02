@@ -19,15 +19,16 @@ case object CardRenderer {
       terminalHeight: Int,
       options: CardRendererOptions = CardRendererOptions()
   ): CardRenderResult = {
-    if cards.isEmpty || terminalWidth <= 0 || terminalHeight <= 0 then
-      return CardRenderResult(Vector.empty, 0, 0, 1, 0)
+    if cards.isEmpty || terminalWidth <= 0 || terminalHeight <= 0 then return CardRenderResult(Vector.empty, 0, 0, 1, 0)
 
     val requestedScale = math.max(1, options.userScale)
 
     val chosenScale =
-      (requestedScale to 1 by -1).find { scale =>
-        cardHeight(scale) <= terminalHeight
-      }.getOrElse(1)
+      (requestedScale to 1 by -1)
+        .find { scale =>
+          cardHeight(scale) <= terminalHeight
+        }
+        .getOrElse(1)
 
     val cardHeightAtScale = cardHeight(chosenScale)
     val cardWidthAtScale = cardWidth(chosenScale)
@@ -66,8 +67,7 @@ case object CardRenderer {
       if canvasY >= 0 && canvasY < canvas.length then
         line.zipWithIndex.foreach { case (char, x) =>
           val canvasX = xOffset + x
-          if canvasX >= 0 && canvasX < canvas(canvasY).length then
-            canvas(canvasY)(canvasX) = char
+          if canvasX >= 0 && canvasX < canvas(canvasY).length then canvas(canvasY)(canvasX) = char
         }
     }
   }

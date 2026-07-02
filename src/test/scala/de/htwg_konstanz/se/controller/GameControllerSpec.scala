@@ -1,6 +1,7 @@
 package de.htwg_konstanz.se.controller
 
 import de.htwg_konstanz.se.controller.strategies.PlayLowestPossibleCardStrategy
+import de.htwg_konstanz.se.io.StubSaveManager
 import de.htwg_konstanz.se.models.*
 import de.htwg_konstanz.se.models.GameState.{Aborted, Ended, Playing, WaitingForPlayers}
 import de.htwg_konstanz.se.util.{Listener, UndoManager}
@@ -17,20 +18,21 @@ class GameControllerSpec extends AnyWordSpec {
     val bob = HumanPlayer("Bob")
     val charlie = HumanPlayer("Charlie")
     val dave = HumanPlayer("Dave")
+    val stubSaveManager = new StubSaveManager()
 
     "start with a waiting game by default" in {
-      val controller = new GameController(new Game(), new UndoManager())
+      val controller = new GameController(new Game(), new UndoManager(), stubSaveManager)
       controller.getGameState should be(WaitingForPlayers)
       controller.getGame.playerHands should be(Map.empty)
     }
 
     "join a player and emit a JoinEvent" in {
-      val controller = new GameController(new Game(), new UndoManager())
+      val controller = new GameController(new Game(), new UndoManager(), stubSaveManager)
       var observed: Option[PlayerJoinEvent] = None
 
       controller.add {
         case e: PlayerJoinEvent => observed = Some(e)
-        case _ =>
+        case _                  =>
       }
 
       controller.join("Alice")
@@ -42,13 +44,22 @@ class GameControllerSpec extends AnyWordSpec {
     }
 
     "start a game and emit StartEvent when enough players exist" in {
-      val game = Game(Map(alice -> Vector.empty, bob -> Vector.empty, HumanPlayer("Charlie") -> Vector.empty, HumanPlayer("Dave") -> Vector.empty), Vector.empty, WaitingForPlayers)
-      val controller = GameController(game, new UndoManager())
+      val game = Game(
+        Map(
+          alice -> Vector.empty,
+          bob -> Vector.empty,
+          HumanPlayer("Charlie") -> Vector.empty,
+          HumanPlayer("Dave") -> Vector.empty
+        ),
+        Vector.empty,
+        WaitingForPlayers
+      )
+      val controller = new GameController(game, new UndoManager(), stubSaveManager)
       var observed: Option[GameStartedEvent] = None
 
       controller.add {
         case e: GameStartedEvent => observed = Some(e)
-        case _ =>
+        case _                   =>
       }
 
       controller.start()
@@ -59,43 +70,50 @@ class GameControllerSpec extends AnyWordSpec {
 
     "set and expose game instance" in {
       val customGame = Game(Map.empty, Vector.empty, Playing)
-      val controller = new GameController(customGame, new UndoManager())
+      val controller = new GameController(customGame, new UndoManager(), stubSaveManager)
 
       controller.getGame should be(customGame)
       controller.getGameState should be(Playing)
     }
 
     "not join a player when game is running and emit GameErrorEvent" in {
-      val controller = new GameController(Game(Map.empty, Vector.empty, Playing), new UndoManager())
+      val controller = new GameController(Game(Map.empty, Vector.empty, Playing), new UndoManager(), stubSaveManager)
       var observed: Option[GameErrorEvent] = None
       controller.add {
         case e: GameErrorEvent => observed = Some(e)
-        case _ =>
+        case _                 =>
       }
       controller.join("Alice")
       observed.isDefined should be(true)
     }
 
     "not play a card and emit GameErrorEvent" in {
-      val controller = new GameController(Game(Map.empty, Vector.empty, WaitingForPlayers), new UndoManager())
+      val controller =
+        new GameController(Game(Map.empty, Vector.empty, WaitingForPlayers), new UndoManager(), stubSaveManager)
       controller.join("Alice")
       val player = controller.getPlayer("Alice").value
       var observed: Option[GameErrorEvent] = None
       controller.add {
         case e: GameErrorEvent => observed = Some(e)
-        case _ =>
+        case _                 =>
       }
       controller.playCard(player, Card.TenOfSpades)
-      observed.value.cause should be(CardPlayedEvent(player = player, card = Card.TenOfSpades, game = controller.getGame))
+      observed.value.cause should be(
+        CardPlayedEvent(player = player, card = Card.TenOfSpades, game = controller.getGame)
+      )
       observed.value.error.failure.exception should have message "Can only play cards in playing state."
     }
 
     "quit a player and emit a QuitEvent" in {
-      val controller = new GameController(Game(Map(alice -> Vector.empty), Vector.empty, WaitingForPlayers), new UndoManager())
+      val controller = new GameController(
+        Game(Map(alice -> Vector.empty), Vector.empty, WaitingForPlayers),
+        new UndoManager(),
+        stubSaveManager
+      )
       var observed: Option[PlayerQuitEvent] = None
       controller.add {
         case e: PlayerQuitEvent => observed = Some(e)
-        case _ =>
+        case _                  =>
       }
       controller.quit(alice.id)
       controller.getGame.playerHands.keySet should not contain alice
@@ -103,23 +121,24 @@ class GameControllerSpec extends AnyWordSpec {
     }
 
     "not quit a player that is not part of the game and emit GameErrorEvent" in {
-      val controller = new GameController(Game(Map.empty, Vector.empty, WaitingForPlayers), new UndoManager())
+      val controller =
+        new GameController(Game(Map.empty, Vector.empty, WaitingForPlayers), new UndoManager(), stubSaveManager)
       var observed: Option[GameErrorEvent] = None
       controller.add {
         case e: GameErrorEvent => observed = Some(e)
-        case _ =>
+        case _                 =>
       }
       controller.quit(alice.id)
       observed.value.cause should be(PlayerQuitEvent(UnknownPlayer, controller.getGame))
     }
 
     "return early from quit when player is not in players list" in {
-      val controller = new GameController(new Game(), new UndoManager())
+      val controller = new GameController(new Game(), new UndoManager(), stubSaveManager)
       controller.join("Alice")
       val differentPlayer = HumanPlayer("Nobody")
       var observedEvents: List[GameEvent] = List.empty
-      controller.add {
-        (e: GameEvent) => observedEvents = observedEvents :+ e
+      controller.add { (e: GameEvent) =>
+        observedEvents = observedEvents :+ e
       }
       controller.quit(differentPlayer.id)
       observedEvents should not be empty
@@ -127,11 +146,11 @@ class GameControllerSpec extends AnyWordSpec {
     }
 
     "abort a game and emit a GameAbortedEvent" in {
-      val controller = new GameController(Game(Map.empty, Vector.empty, Playing), new UndoManager())
+      val controller = new GameController(Game(Map.empty, Vector.empty, Playing), new UndoManager(), stubSaveManager)
       var observed: Option[GameAbortedEvent] = None
       controller.add {
         case e: GameAbortedEvent => observed = Some(e)
-        case _ =>
+        case _                   =>
       }
       controller.abort()
       controller.getGameState should be(Aborted)
@@ -139,7 +158,7 @@ class GameControllerSpec extends AnyWordSpec {
     }
 
     "not abort a game when not playing" in {
-      val controller = new GameController(new Game(), new UndoManager())
+      val controller = new GameController(new Game(), new UndoManager(), stubSaveManager)
       controller.abort()
       controller.getGameState should not be Aborted
     }
@@ -148,9 +167,9 @@ class GameControllerSpec extends AnyWordSpec {
       val game = Game(
         Map(alice -> Vector(Card.ThreeOfHearts), bob -> Vector(Card.FourOfClubs)),
         Vector(Card.FiveOfSpades),
-        Aborted,
+        Aborted
       )
-      val controller = new GameController(game, new UndoManager())
+      val controller = new GameController(game, new UndoManager(), stubSaveManager)
 
       controller.reset()
       controller.getGameState should be(WaitingForPlayers)
@@ -165,9 +184,9 @@ class GameControllerSpec extends AnyWordSpec {
       val game = Game(
         Map(alice -> Vector.empty, bob -> Vector(Card.KingOfHearts)),
         Vector(Card.AceOfSpades),
-        Ended,
+        Ended
       )
-      val controller = new GameController(game, new UndoManager())
+      val controller = new GameController(game, new UndoManager(), stubSaveManager)
 
       controller.reset()
       controller.getGameState should be(WaitingForPlayers)
@@ -176,34 +195,35 @@ class GameControllerSpec extends AnyWordSpec {
     }
 
     "notify listeners on reset" in {
-      val controller = new GameController(Game(Map.empty, Vector.empty, Aborted), new UndoManager())
+      val controller = new GameController(Game(Map.empty, Vector.empty, Aborted), new UndoManager(), stubSaveManager)
       var observed: Option[GameEvent] = None
       controller.add((e: GameEvent) => observed = Some(e))
       controller.reset()
       observed.isDefined should be(true)
       observed.get match {
         case GameChangedEvent(_) => // correct
-        case _ => fail("Expected GameChangedEvent")
+        case _                   => fail("Expected GameChangedEvent")
       }
     }
 
     "not start a game when fewer than 2 players and emit GameErrorEvent" in {
-      val controller = new GameController(Game(Map.empty, Vector.empty, WaitingForPlayers), new UndoManager())
+      val controller =
+        new GameController(Game(Map.empty, Vector.empty, WaitingForPlayers), new UndoManager(), stubSaveManager)
       var observed: Option[GameErrorEvent] = None
       controller.add {
         case e: GameErrorEvent => observed = Some(e)
-        case _ =>
+        case _                 =>
       }
       controller.start()
       observed.isDefined should be(true)
     }
 
     "emit GameExitEvent when exit is called" in {
-      val controller = new GameController(new Game(), new UndoManager())
+      val controller = new GameController(new Game(), new UndoManager(), stubSaveManager)
       var observed: Boolean = false
       controller.add {
         case GameExitEvent => observed = true
-        case _ =>
+        case _             =>
       }
       controller.exit()
       observed should be(true)
@@ -219,11 +239,11 @@ class GameControllerSpec extends AnyWordSpec {
         Some(CardRank.Ace),
         Some(bob)
       )
-      val controller = GameController(game, new UndoManager())
+      val controller = new GameController(game, new UndoManager(), stubSaveManager)
       var observed: Option[GameEndedEvent] = None
       controller.add {
         case e: GameEndedEvent => observed = Some(e)
-        case _ =>
+        case _                 =>
       }
       controller.playCard(controller.getPlayer("Alice").value, Card.TwoOfSpades)
       observed.isDefined should be(true)
@@ -240,11 +260,11 @@ class GameControllerSpec extends AnyWordSpec {
         Some(CardRank.Five),
         Some(bob)
       )
-      val controller = GameController(game, new UndoManager())
+      val controller = new GameController(game, new UndoManager(), stubSaveManager)
       var observed: Option[GameErrorEvent] = None
       controller.add {
         case e: GameErrorEvent => observed = Some(e)
-        case _ =>
+        case _                 =>
       }
       controller.playCard(alice, Card.KingOfHearts)
       observed.isDefined should be(true)
@@ -261,11 +281,11 @@ class GameControllerSpec extends AnyWordSpec {
         Some(CardRank.Four),
         Some(alice)
       )
-      val controller = GameController(game, new UndoManager())
+      val controller = new GameController(game, new UndoManager(), stubSaveManager)
       var observed: Option[CardPlayedEvent] = None
       controller.add {
         case e: CardPlayedEvent => observed = Some(e)
-        case _ =>
+        case _                  =>
       }
       controller.playCard(alice, 0)
       observed.isDefined should be(true)
@@ -280,11 +300,11 @@ class GameControllerSpec extends AnyWordSpec {
         Playing,
         Some(alice)
       )
-      val controller = GameController(game, new UndoManager())
+      val controller = new GameController(game, new UndoManager(), stubSaveManager)
       var observed: Option[GameErrorEvent] = None
       controller.add {
         case e: GameErrorEvent => observed = Some(e)
-        case _ =>
+        case _                 =>
       }
       controller.playCard(alice, 5)
       observed.isDefined should be(true)
@@ -303,11 +323,11 @@ class GameControllerSpec extends AnyWordSpec {
         Some(CardRank.Four),
         Some(comp)
       )
-      val controller = GameController(game, new UndoManager())
+      val controller = new GameController(game, new UndoManager(), stubSaveManager)
       var observed: Option[CardPlayedEvent] = None
       controller.add {
         case e: CardPlayedEvent => observed = Some(e)
-        case _ =>
+        case _                  =>
       }
       controller.playCard(comp)
       observed.value.card should be(Card.FiveOfClubs)
@@ -325,11 +345,11 @@ class GameControllerSpec extends AnyWordSpec {
         Some(CardRank.Five),
         Some(alice)
       )
-      val controller = GameController(game, new UndoManager())
+      val controller = new GameController(game, new UndoManager(), stubSaveManager)
       var observed: Option[GameErrorEvent] = None
       controller.add {
         case e: GameErrorEvent => observed = Some(e)
-        case _ =>
+        case _                 =>
       }
       controller.playCard(comp)
       observed.isDefined should be(true)
@@ -355,11 +375,11 @@ class GameControllerSpec extends AnyWordSpec {
         1,
         Vector(alice, bob, charlie, dave)
       )
-      val controller = GameController(game, new UndoManager())
+      val controller = new GameController(game, new UndoManager(), stubSaveManager)
       var observed: Option[NextRoundEvent] = None
       controller.add {
         case e: NextRoundEvent => observed = Some(e)
-        case _ =>
+        case _                 =>
       }
       controller.nextRound()
       observed.isDefined should be(true)
@@ -386,11 +406,11 @@ class GameControllerSpec extends AnyWordSpec {
         6,
         Vector(alice)
       )
-      val controller = GameController(game, new UndoManager())
+      val controller = new GameController(game, new UndoManager(), stubSaveManager)
       var observed: Option[GameErrorEvent] = None
       controller.add {
         case e: GameErrorEvent => observed = Some(e)
-        case _ =>
+        case _                 =>
       }
       controller.nextRound()
       observed.isDefined should be(true)
@@ -406,11 +426,11 @@ class GameControllerSpec extends AnyWordSpec {
         Some(CardRank.Five),
         Some(alice)
       )
-      val controller = GameController(game, new UndoManager())
+      val controller = new GameController(game, new UndoManager(), stubSaveManager)
       var observed: Option[PassTrickEvent] = None
       controller.add {
         case e: PassTrickEvent => observed = Some(e)
-        case _ =>
+        case _                 =>
       }
       controller.passTrick(bob)
       observed.isDefined should be(true)
@@ -427,11 +447,11 @@ class GameControllerSpec extends AnyWordSpec {
         None,
         None
       )
-      val controller = GameController(game, new UndoManager())
+      val controller = new GameController(game, new UndoManager(), stubSaveManager)
       var observed: Option[GameErrorEvent] = None
       controller.add {
         case e: GameErrorEvent => observed = Some(e)
-        case _ =>
+        case _                 =>
       }
       controller.passTrick(alice)
       observed.isDefined should be(true)
@@ -449,11 +469,11 @@ class GameControllerSpec extends AnyWordSpec {
         Some(CardRank.Five),
         Some(alice)
       )
-      val controller = GameController(game, new UndoManager())
+      val controller = new GameController(game, new UndoManager(), stubSaveManager)
       var observed: Option[GameErrorEvent] = None
       controller.add {
         case e: GameErrorEvent => observed = Some(e)
-        case _ =>
+        case _                 =>
       }
       controller.playCard(comp)
       observed.isDefined should be(true)
@@ -470,23 +490,25 @@ class GameControllerSpec extends AnyWordSpec {
         Some(CardRank.Five),
         Some(alice)
       )
-      val controller = GameController(game, new UndoManager())
+      val controller = new GameController(game, new UndoManager(), stubSaveManager)
       var observed: Option[GameErrorEvent] = None
       controller.add {
         case e: GameErrorEvent => observed = Some(e)
-        case _ =>
+        case _                 =>
       }
       controller.playCard(alice)
       observed.isDefined should be(true)
-      observed.value.error.failure.exception.getMessage should include("Only computer players can use playCard(IPlayer)")
+      observed.value.error.failure.exception.getMessage should include(
+        "Only computer players can use playCard(IPlayer)"
+      )
     }
 
     "join a computer player" in {
-      val controller = new GameController(new Game(), new UndoManager())
+      val controller = new GameController(new Game(), new UndoManager(), stubSaveManager)
       var observed: Option[PlayerJoinEvent] = None
       controller.add {
         case e: PlayerJoinEvent => observed = Some(e)
-        case _ =>
+        case _                  =>
       }
       val strategy = PlayLowestPossibleCardStrategy()
       controller.joinComputer("Bot", strategy)
@@ -497,13 +519,17 @@ class GameControllerSpec extends AnyWordSpec {
     }
 
     "expose players as empty sequence" in {
-      val controller = new GameController(new Game(), new UndoManager())
+      val controller = new GameController(new Game(), new UndoManager(), stubSaveManager)
       controller.players should be(Seq.empty)
     }
 
     "return correct playerCount" in {
-      val game = Game(Map(alice -> Vector.empty, bob -> Vector.empty, charlie -> Vector.empty, dave -> Vector.empty), Vector.empty, PlayingState)
-      val controller = GameController(game, new UndoManager())
+      val game = Game(
+        Map(alice -> Vector.empty, bob -> Vector.empty, charlie -> Vector.empty, dave -> Vector.empty),
+        Vector.empty,
+        PlayingState
+      )
+      val controller = new GameController(game, new UndoManager(), stubSaveManager)
       controller.playerCount should be(4)
     }
 
@@ -517,11 +543,11 @@ class GameControllerSpec extends AnyWordSpec {
         Some(CardRank.Five),
         Some(alice)
       )
-      val controller = GameController(game, new UndoManager())
+      val controller = new GameController(game, new UndoManager(), stubSaveManager)
       var observed: Option[GameErrorEvent] = None
       controller.add {
         case e: GameErrorEvent => observed = Some(e)
-        case _ =>
+        case _                 =>
       }
       controller.passTrick(alice)
       observed.isDefined should be(true)
@@ -535,11 +561,11 @@ class GameControllerSpec extends AnyWordSpec {
         PlayingState,
         Some(alice)
       )
-      val controller = GameController(game, new UndoManager())
+      val controller = new GameController(game, new UndoManager(), stubSaveManager)
       var observed: Option[GameErrorEvent] = None
       controller.add {
         case e: GameErrorEvent => observed = Some(e)
-        case _ =>
+        case _                 =>
       }
       controller.playCard(alice, -1)
       observed.isDefined should be(true)
@@ -553,11 +579,11 @@ class GameControllerSpec extends AnyWordSpec {
         PlayingState,
         Some(alice)
       )
-      val controller = GameController(game, new UndoManager())
+      val controller = new GameController(game, new UndoManager(), stubSaveManager)
       var observed: Option[GameErrorEvent] = None
       controller.add {
         case e: GameErrorEvent => observed = Some(e)
-        case _ =>
+        case _                 =>
       }
       controller.playCard(bob, 0)
       observed.isDefined should be(true)
@@ -579,11 +605,11 @@ class GameControllerSpec extends AnyWordSpec {
         Some(CardRank.Ace),
         Some(alice)
       )
-      val controller = GameController(game, new UndoManager())
+      val controller = new GameController(game, new UndoManager(), stubSaveManager)
       var observedTableClear: Option[TableClearedEvent] = None
       controller.add {
         case e: TableClearedEvent => observedTableClear = Some(e)
-        case _ =>
+        case _                    =>
       }
       controller.playCard(bob, Card.TwoOfHearts)
       observedTableClear.isDefined should be(true)
@@ -593,7 +619,13 @@ class GameControllerSpec extends AnyWordSpec {
     "emit TableClearedEvent with FourOfAKindBomb when leading four of a kind" in {
       val game = Game(
         Map(
-          alice -> Vector(Card.SevenOfHearts, Card.SevenOfClubs, Card.SevenOfSpades, Card.SevenOfDiamonds, Card.ThreeOfHearts),
+          alice -> Vector(
+            Card.SevenOfHearts,
+            Card.SevenOfClubs,
+            Card.SevenOfSpades,
+            Card.SevenOfDiamonds,
+            Card.ThreeOfHearts
+          ),
           bob -> Vector(Card.TenOfHearts),
           charlie -> Vector(Card.JackOfHearts),
           dave -> Vector(Card.QueenOfHearts)
@@ -605,11 +637,11 @@ class GameControllerSpec extends AnyWordSpec {
         None,
         None
       )
-      val controller = GameController(game, new UndoManager())
+      val controller = new GameController(game, new UndoManager(), stubSaveManager)
       var observedTableClear: Option[TableClearedEvent] = None
       controller.add {
         case e: TableClearedEvent => observedTableClear = Some(e)
-        case _ =>
+        case _                    =>
       }
       controller.playCard(alice, Card.SevenOfHearts)
       observedTableClear.isDefined should be(true)
@@ -632,15 +664,162 @@ class GameControllerSpec extends AnyWordSpec {
         Some(alice),
         Set(charlie, dave)
       )
-      val controller = GameController(game, new UndoManager())
+      val controller = new GameController(game, new UndoManager(), stubSaveManager)
       var observedTableClear: Option[TableClearedEvent] = None
       controller.add {
         case e: TableClearedEvent => observedTableClear = Some(e)
-        case _ =>
+        case _                    =>
       }
       controller.passTrick(bob)
       observedTableClear.isDefined should be(true)
       observedTableClear.get.reason should be(TableClearReason.TrickWon)
+    }
+
+    "emit TableClearedEvent with TrickWon when passTrick wins trick" in {
+      val game = Game(
+        Map(
+          alice -> Vector(Card.KingOfHearts),
+          bob -> Vector(Card.AceOfSpades),
+          charlie -> Vector(Card.QueenOfHearts),
+          dave -> Vector(Card.JackOfHearts)
+        ),
+        Vector(Card.FiveOfClubs),
+        PlayingState,
+        Some(bob),
+        1,
+        Some(CardRank.Five),
+        Some(alice),
+        Set(charlie, dave)
+      )
+      val controller = new GameController(game, new UndoManager(), stubSaveManager)
+      var observedTableClear: Option[TableClearedEvent] = None
+      controller.add {
+        case e: TableClearedEvent => observedTableClear = Some(e)
+        case _                    =>
+      }
+      controller.passTrick(bob)
+      observedTableClear.isDefined should be(true)
+      observedTableClear.get.reason should be(TableClearReason.TrickWon)
+    }
+
+    "playCard(IPlayer) when computer has no playable cards and passes" in {
+      val strategy = PlayLowestPossibleCardStrategy()
+      val comp = ComputerPlayer("Com", strategy)
+      val game = Game(
+        Map(comp -> Vector(Card.ThreeOfHearts), alice -> Vector(Card.AceOfSpades)),
+        Vector(Card.AceOfClubs),
+        PlayingState,
+        Some(comp),
+        1,
+        Some(CardRank.Ace),
+        Some(alice)
+      )
+      val controller = new GameController(game, new UndoManager(), stubSaveManager)
+      var observed: Option[PassTrickEvent] = None
+      controller.add {
+        case e: PassTrickEvent => observed = Some(e)
+        case _                 =>
+      }
+      controller.playCard(comp)
+      observed.isDefined should be(true)
+    }
+
+    "playCard(IPlayer) when computer has empty hand and passes trick" in {
+      val strategy = PlayLowestPossibleCardStrategy()
+      val comp = ComputerPlayer("Com", strategy)
+      val game = Game(
+        Map(comp -> Vector.empty, alice -> Vector(Card.AceOfSpades)),
+        Vector(Card.FiveOfClubs),
+        PlayingState,
+        Some(comp),
+        1,
+        Some(CardRank.Five),
+        Some(alice)
+      )
+      val controller = new GameController(game, new UndoManager(), stubSaveManager)
+      var observed: Option[PassTrickEvent] = None
+      controller.add {
+        case e: PassTrickEvent => observed = Some(e)
+        case _                 =>
+      }
+      controller.playCard(comp)
+      observed.isDefined should be(true)
+    }
+
+    "load a game successfully" in {
+      val saveManager = new StubSaveManager()
+      val game = Game(
+        Map(alice -> Vector(Card.ThreeOfClubs)),
+        Vector.empty,
+        WaitingForPlayers
+      )
+      saveManager.loadResult = scala.util.Success(game)
+      val controller = new GameController(new Game(), new UndoManager(), saveManager)
+      var observed: Option[GameChangedEvent] = None
+      controller.add {
+        case e: GameChangedEvent => observed = Some(e)
+        case _                   =>
+      }
+      controller.load("test-path")
+      observed.isDefined should be(true)
+      controller.getGame should be(game)
+    }
+
+    "handle load failure" in {
+      val saveManager = new StubSaveManager()
+      saveManager.loadResult = scala.util.Failure(new Exception("load failed"))
+      val controller = new GameController(new Game(), new UndoManager(), saveManager)
+      var observed: Option[GameErrorEvent] = None
+      controller.add {
+        case e: GameErrorEvent => observed = Some(e)
+        case _                 =>
+      }
+      controller.load("test-path")
+      observed.isDefined should be(true)
+    }
+
+    "save a game successfully" in {
+      val saveManager = new StubSaveManager()
+      val controller = new GameController(new Game(), new UndoManager(), saveManager)
+      var observed: Option[GameChangedEvent] = None
+      controller.add {
+        case e: GameChangedEvent => observed = Some(e)
+        case _                   =>
+      }
+      controller.save("test-path")
+      observed.isDefined should be(true)
+    }
+
+    "handle save failure" in {
+      val saveManager = new StubSaveManager()
+      saveManager.saveResult = scala.util.Failure(new Exception("save failed"))
+      val controller = new GameController(new Game(), new UndoManager(), saveManager)
+      var observed: Option[GameErrorEvent] = None
+      controller.add {
+        case e: GameErrorEvent => observed = Some(e)
+        case _                 =>
+      }
+      controller.save("test-path")
+      observed.isDefined should be(true)
+    }
+
+    "delete save successfully" in {
+      val saveManager = new StubSaveManager()
+      val controller = new GameController(new Game(), new UndoManager(), saveManager)
+      controller.deleteSave("test-path")
+    }
+
+    "handle delete save failure" in {
+      val saveManager = new StubSaveManager()
+      saveManager.deleteResult = scala.util.Failure(new Exception("delete failed"))
+      val controller = new GameController(new Game(), new UndoManager(), saveManager)
+      var observed: Option[GameErrorEvent] = None
+      controller.add {
+        case e: GameErrorEvent => observed = Some(e)
+        case _                 =>
+      }
+      controller.deleteSave("test-path")
+      observed.isDefined should be(true)
     }
   }
 }

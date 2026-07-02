@@ -1,6 +1,7 @@
 package de.htwg_konstanz.se.models
 
 import de.htwg_konstanz.se.controller.GameController
+import de.htwg_konstanz.se.io.StubSaveManager
 import de.htwg_konstanz.se.models.GameState.{Ended, Playing}
 import de.htwg_konstanz.se.models.PlayingState
 import de.htwg_konstanz.se.util.UndoManager
@@ -9,16 +10,32 @@ import org.scalatest.matchers.should.Matchers.*
 import org.scalatest.wordspec.AnyWordSpec
 
 class GameSpec extends AnyWordSpec {
-  private def makeGame(playerHands: Map[IPlayer, Vector[Card]], playedCards: Vector[Card] = Vector.empty, state: GameState = Playing, currentPlayer: Option[IPlayer] = None, trickCount: Int = 0, trickRank: Option[CardRank] = None, trickLeader: Option[IPlayer] = None): Game = {
+  private val stubSaveManager = new StubSaveManager()
+
+  private def makeGame(
+      playerHands: Map[IPlayer, Vector[Card]],
+      playedCards: Vector[Card] = Vector.empty,
+      state: GameState = Playing,
+      currentPlayer: Option[IPlayer] = None,
+      trickCount: Int = 0,
+      trickRank: Option[CardRank] = None,
+      trickLeader: Option[IPlayer] = None
+  ): Game = {
     Game(playerHands, playedCards, state, currentPlayer, trickCount, trickRank, trickLeader)
   }
 
-  private def makePlayingGame(playerHands: Map[IPlayer, Vector[Card]], trickRank: CardRank, trickLeader: IPlayer, currentPlayer: IPlayer = null, playedCards: Vector[Card] = Vector.empty): Game = {
+  private def makePlayingGame(
+      playerHands: Map[IPlayer, Vector[Card]],
+      trickRank: CardRank,
+      trickLeader: IPlayer,
+      currentPlayer: IPlayer = null,
+      playedCards: Vector[Card] = Vector.empty
+  ): Game = {
     val cp = if (currentPlayer != null) currentPlayer else trickLeader
     Game(playerHands, playedCards, PlayingState, Some(cp), 1, Some(trickRank), Some(trickLeader))
   }
 
-  private def makeController(game: Game): GameController = new GameController(game, new UndoManager())
+  private def makeController(game: Game): GameController = new GameController(game, new UndoManager(), stubSaveManager)
 
   "A game" should {
     val alice = HumanPlayer("Alice")
@@ -80,7 +97,11 @@ class GameSpec extends AnyWordSpec {
     }
 
     "start when waiting and at least four players exist" in {
-      val game = Game(Map(alice -> Vector.empty, bob -> Vector.empty, charlie -> Vector.empty, dave -> Vector.empty), Vector.empty, GameState.WaitingForPlayers)
+      val game = Game(
+        Map(alice -> Vector.empty, bob -> Vector.empty, charlie -> Vector.empty, dave -> Vector.empty),
+        Vector.empty,
+        GameState.WaitingForPlayers
+      )
 
       val started = game.start().success.value
       started.state should be(Playing)
@@ -88,7 +109,11 @@ class GameSpec extends AnyWordSpec {
     }
 
     "not start when fewer than four players exist" in {
-      val game = Game(Map(alice -> Vector.empty, bob -> Vector.empty, charlie -> Vector.empty), Vector.empty, GameState.WaitingForPlayers)
+      val game = Game(
+        Map(alice -> Vector.empty, bob -> Vector.empty, charlie -> Vector.empty),
+        Vector.empty,
+        GameState.WaitingForPlayers
+      )
       game.start().failure.exception should have message "Can only start a new game with four or more players."
     }
 
@@ -101,7 +126,7 @@ class GameSpec extends AnyWordSpec {
       val game = Game(
         Map(alice -> Vector.empty, bob -> Vector.empty, charlie -> Vector.empty, dave -> Vector.empty),
         Vector.empty,
-        GameState.WaitingForPlayers,
+        GameState.WaitingForPlayers
       )
 
       val dealt = game.deal().success.value
@@ -122,7 +147,7 @@ class GameSpec extends AnyWordSpec {
       val game = Game(
         Map(
           alice -> Vector(playedCard, Card.KingOfHearts),
-          bob -> Vector(Card.FiveOfClubs),
+          bob -> Vector(Card.FiveOfClubs)
         ),
         Vector.empty,
         Playing,
@@ -168,10 +193,10 @@ class GameSpec extends AnyWordSpec {
       val game = Game(
         Map(
           alice -> Vector(Card.FourOfHearts),
-          bob -> Vector(Card.QueenOfClubs),
+          bob -> Vector(Card.QueenOfClubs)
         ),
         Vector.empty,
-        Playing,
+        Playing
       )
 
       game.playCard(alice, Card.AceOfClubs).failure.exception.getMessage should include("does not have card")
@@ -233,7 +258,12 @@ class GameSpec extends AnyWordSpec {
 
     "succeed NextRound with empty finishOrder" in {
       val game = Game(
-        Map(alice -> Vector(Card.FiveOfClubs), bob -> Vector(Card.SixOfHearts), charlie -> Vector(Card.SevenOfHearts), dave -> Vector(Card.EightOfHearts)),
+        Map(
+          alice -> Vector(Card.FiveOfClubs),
+          bob -> Vector(Card.SixOfHearts),
+          charlie -> Vector(Card.SevenOfHearts),
+          dave -> Vector(Card.EightOfHearts)
+        ),
         Vector.empty,
         GameState.Ended,
         None,
@@ -252,7 +282,7 @@ class GameSpec extends AnyWordSpec {
       val game = Game(
         Map(alice -> Vector(Card.FourOfHearts)),
         Vector.empty,
-        Playing,
+        Playing
       )
       game.playCard(alice, Card.Unknown).isFailure should be(true)
     }
@@ -261,7 +291,7 @@ class GameSpec extends AnyWordSpec {
       val game = Game(
         Map(alice -> Vector(Card.FourOfHearts)),
         Vector.empty,
-        Playing,
+        Playing
       )
       game.playCard(bob, Card.FiveOfHearts).failure.exception.getMessage should include(bob.id.toString)
     }
@@ -269,7 +299,13 @@ class GameSpec extends AnyWordSpec {
     "burn the trick when leading four of a kind" in {
       val game = Game(
         Map(
-          alice -> Vector(Card.SevenOfHearts, Card.SevenOfClubs, Card.SevenOfSpades, Card.SevenOfDiamonds, Card.ThreeOfHearts),
+          alice -> Vector(
+            Card.SevenOfHearts,
+            Card.SevenOfClubs,
+            Card.SevenOfSpades,
+            Card.SevenOfDiamonds,
+            Card.ThreeOfHearts
+          ),
           bob -> Vector(Card.TenOfHearts),
           charlie -> Vector(Card.JackOfHearts),
           dave -> Vector(Card.QueenOfHearts)
@@ -377,7 +413,11 @@ class GameSpec extends AnyWordSpec {
     }
 
     "not deal cards when fewer than four players" in {
-      val game = Game(Map(alice -> Vector.empty, bob -> Vector.empty, charlie -> Vector.empty), Vector.empty, GameState.WaitingForPlayers)
+      val game = Game(
+        Map(alice -> Vector.empty, bob -> Vector.empty, charlie -> Vector.empty),
+        Vector.empty,
+        GameState.WaitingForPlayers
+      )
       game.deal().failure.exception should have message "Can only deal cards when four or more players are in the game."
     }
 
@@ -464,29 +504,29 @@ class GameSpec extends AnyWordSpec {
       val scumHand = Vector(Card.KingOfHearts, Card.AceOfHearts, Card.TwoOfHearts)
       val vpHand = Vector(Card.SixOfHearts, Card.SevenOfHearts)
       val vscumHand = Vector(Card.TenOfHearts, Card.JackOfHearts)
-      
+
       val playerHands: Map[IPlayer, Vector[Card]] = Map(
         alice -> presHand,
         bob -> scumHand,
         charlie -> vpHand,
         dave -> vscumHand
       )
-      
+
       val result = Game.exchangeCards(alice, bob, Some(charlie), Some(dave), playerHands)
-      
+
       result(alice) should contain(Card.AceOfHearts)
       result(alice) should contain(Card.TwoOfHearts)
-      result(alice) should not contain(Card.ThreeOfHearts)
-      
+      result(alice) should not contain (Card.ThreeOfHearts)
+
       result(bob) should contain(Card.ThreeOfHearts)
       result(bob) should contain(Card.FourOfHearts)
-      result(bob) should not contain(Card.TwoOfHearts)
-      
+      result(bob) should not contain (Card.TwoOfHearts)
+
       result(charlie) should contain(Card.JackOfHearts)
-      result(charlie) should not contain(Card.SixOfHearts)
-      
+      result(charlie) should not contain (Card.SixOfHearts)
+
       result(dave) should contain(Card.SixOfHearts)
-      result(dave) should not contain(Card.JackOfHearts)
+      result(dave) should not contain (Card.JackOfHearts)
     }
 
     "get best cards sorted by rank descending" in {
@@ -559,6 +599,118 @@ class GameSpec extends AnyWordSpec {
         Some(alice)
       )
       game.passTrick(alice).isFailure should be(true)
+    }
+
+    "round-trip a full game through JSON" in {
+      val game = Game(
+        playerHands = Map(
+          alice -> Vector(Card.ThreeOfClubs, Card.FourOfHearts),
+          bob -> Vector(Card.FiveOfClubs, Card.SixOfHearts),
+          charlie -> Vector(Card.SevenOfClubs, Card.EightOfHearts),
+          dave -> Vector(Card.NineOfClubs, Card.TenOfHearts)
+        ),
+        playedCards = Vector(Card.AceOfClubs),
+        state = PlayingState,
+        currentPlayer = Some(alice),
+        trickCount = 1,
+        trickRank = Some(CardRank.Ace),
+        trickLeader = Some(bob),
+        passedPlayers = Set(charlie),
+        scoredRanks = Map(alice -> 3, bob -> 1),
+        roundNumber = 2,
+        finishOrder = Vector(alice, bob)
+      )
+      val json = play.api.libs.json.Json.toJson(game)
+      val restored = json.as[Game]
+      restored.playerHands.size should be(4)
+      restored.state should be(PlayingState)
+      restored.currentPlayer should be(Some(alice))
+      restored.trickCount should be(1)
+      restored.trickRank should be(Some(CardRank.Ace))
+      restored.trickLeader should be(Some(bob))
+      restored.passedPlayers should be(Set(charlie))
+      restored.scoredRanks should be(Map(alice -> 3, bob -> 1))
+      restored.roundNumber should be(2)
+      restored.finishOrder should be(Vector(alice, bob))
+    }
+
+    "round-trip a game with no current player through JSON" in {
+      val game = Game(
+        playerHands = Map(alice -> Vector(Card.AceOfClubs)),
+        playedCards = Vector.empty,
+        state = EndedState,
+        currentPlayer = None,
+        trickCount = 0,
+        trickRank = None,
+        trickLeader = None
+      )
+      val json = play.api.libs.json.Json.toJson(game)
+      val restored = json.as[Game]
+      restored.currentPlayer should be(None)
+      restored.trickRank should be(None)
+      restored.trickLeader should be(None)
+    }
+
+    "round-trip a full game through XML" in {
+      val game = Game(
+        playerHands = Map(
+          alice -> Vector(Card.ThreeOfClubs, Card.FourOfHearts),
+          bob -> Vector(Card.FiveOfClubs),
+          charlie -> Vector(Card.SixOfClubs),
+          dave -> Vector(Card.SevenOfClubs)
+        ),
+        playedCards = Vector(Card.AceOfClubs),
+        state = PlayingState,
+        currentPlayer = Some(alice),
+        trickCount = 1,
+        trickRank = Some(CardRank.Ace),
+        trickLeader = Some(bob),
+        passedPlayers = Set(charlie),
+        scoredRanks = Map(alice -> 3),
+        roundNumber = 2,
+        finishOrder = Vector(alice, bob)
+      )
+      val xml = Game.toXml(game)
+      val restored = Game.fromXml(xml)
+      restored.playerHands.size should be(4)
+      restored.state should be(PlayingState)
+      restored.currentPlayer should be(Some(alice))
+      restored.trickCount should be(1)
+      restored.trickRank should be(Some(CardRank.Ace))
+      restored.trickLeader should be(Some(bob))
+      restored.passedPlayers should be(Set(charlie))
+      restored.scoredRanks should be(Map(alice -> 3))
+      restored.roundNumber should be(2)
+      restored.finishOrder should be(Vector(alice, bob))
+    }
+
+    "round-trip a game with no current player through XML" in {
+      val game = Game(
+        playerHands = Map(alice -> Vector(Card.AceOfClubs)),
+        playedCards = Vector.empty,
+        state = EndedState,
+        currentPlayer = None,
+        trickCount = 0,
+        trickRank = None,
+        trickLeader = None
+      )
+      val xml = Game.toXml(game)
+      val restored = Game.fromXml(xml)
+      restored.currentPlayer should be(None)
+      restored.trickRank should be(None)
+      restored.trickLeader should be(None)
+    }
+
+    "round-trip a game with empty finishOrder through XML" in {
+      val game = Game(
+        playerHands = Map(alice -> Vector(Card.AceOfClubs)),
+        playedCards = Vector.empty,
+        state = PlayingState,
+        finishOrder = Vector.empty
+      )
+      val xml = Game.toXml(game)
+      val restored = Game.fromXml(xml)
+      restored.finishOrder should be(Vector.empty)
     }
   }
 

@@ -15,7 +15,7 @@ class PresidentModule(val guiMode: GuiMode, val saveFormat: SaveFormat) extends 
 
     bind[ISaveManager].to(saveFormat match {
       case SaveFormat.Json => classOf[JsonSaveManager]
-      case SaveFormat.Xml => classOf[XmlSaveManager]
+      case SaveFormat.Xml  => classOf[XmlSaveManager]
     })
 
     bind[Game].toProvider[GameProvider]

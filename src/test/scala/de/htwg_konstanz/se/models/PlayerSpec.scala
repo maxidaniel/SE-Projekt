@@ -2,14 +2,16 @@ package de.htwg_konstanz.se.models
 
 import org.scalatest.matchers.should.Matchers.*
 import org.scalatest.wordspec.AnyWordSpec
+import play.api.libs.json.Json
 
 import de.htwg_konstanz.se.controller.strategies.PlayLowestPossibleCardStrategy
+import de.htwg_konstanz.se.controller.strategies.PlayRandomCardStrategy
 import java.util.UUID
 
 class PlayerSpec extends AnyWordSpec {
   "A human player" should {
     val player = HumanPlayer("Test")
-    
+
     "be created with a name, id, Human player type, and empty strategy" in {
       player.name should be("Test")
       player.id should not be null
@@ -21,13 +23,13 @@ class PlayerSpec extends AnyWordSpec {
   "A computer player" should {
     val strat = PlayLowestPossibleCardStrategy()
     val player = ComputerPlayer("Computer", strat)
-    
+
     "have name 'Computer'" in {
       player.name should be("Computer")
     }
-    
+
     "have PlayLowestPossibleCard strategy" in {
-      player.strategy should be(strat)  
+      player.strategy should be(strat)
     }
   }
 
@@ -77,6 +79,106 @@ class PlayerSpec extends AnyWordSpec {
 
     "be of type Unknown" in {
       UnknownPlayer.playerType should be(PlayerType.Unknown)
+    }
+  }
+
+  "IPlayer JSON Writes" should {
+    "serialize a HumanPlayer to JSON" in {
+      val player: IPlayer = HumanPlayer("Alice")
+      val json = Json.toJson(player)
+      (json \ "type").as[String] should be("Human")
+      (json \ "name").as[String] should be("Alice")
+      (json \ "id").as[String] should be(player.id.toString)
+    }
+
+    "serialize a ComputerPlayer to JSON" in {
+      val strategy = PlayLowestPossibleCardStrategy()
+      val player: IPlayer = ComputerPlayer("Bot", strategy)
+      val json = Json.toJson(player)
+      (json \ "type").as[String] should be("Computer")
+      (json \ "name").as[String] should be("Bot")
+      (json \ "strategy").as[String] should be("PlayLowestPossibleCardStrategy")
+    }
+
+    "serialize UnknownPlayer to JSON" in {
+      val json = Json.toJson(UnknownPlayer: IPlayer)
+      (json \ "type").as[String] should be("Unknown")
+      (json \ "name").as[String] should be("Unknown")
+    }
+  }
+
+  "IPlayer JSON Reads" should {
+    "deserialize a HumanPlayer from JSON" in {
+      val json = Json.obj("type" -> "Human", "name" -> "Alice", "id" -> UUID.randomUUID().toString)
+      val player = json.as[IPlayer]
+      player.name should be("Alice")
+      player shouldBe a[HumanPlayer]
+    }
+
+    "deserialize a ComputerPlayer from JSON" in {
+      val json = Json.obj(
+        "type" -> "Computer",
+        "name" -> "Bot",
+        "id" -> UUID.randomUUID().toString,
+        "strategy" -> "PlayRandomCardStrategy"
+      )
+      val player = json.as[IPlayer]
+      player.name should be("Bot")
+      player shouldBe a[ComputerPlayer]
+    }
+
+    "deserialize unknown type as UnknownPlayer" in {
+      val json = Json.obj("type" -> "SomethingElse", "name" -> "X", "id" -> UUID.randomUUID().toString)
+      val player = json.as[IPlayer]
+      player should be(UnknownPlayer)
+    }
+
+    "fail for ComputerPlayer with unknown strategy" in {
+      val json = Json.obj(
+        "type" -> "Computer",
+        "name" -> "Bot",
+        "id" -> UUID.randomUUID().toString,
+        "strategy" -> "NonExistentStrategy"
+      )
+      json.validate[IPlayer].isError should be(true)
+    }
+  }
+
+  "IPlayer XML serialization" should {
+    "toXml and fromXml a HumanPlayer" in {
+      val player = HumanPlayer("Alice")
+      val xml = IPlayer.toXml(player)
+      val restored = IPlayer.fromXml(xml)
+      restored.name should be("Alice")
+      restored shouldBe a[HumanPlayer]
+      restored.id should be(player.id)
+    }
+
+    "toXml and fromXml a ComputerPlayer" in {
+      val strategy = PlayLowestPossibleCardStrategy()
+      val player = ComputerPlayer("Bot", strategy)
+      val xml = IPlayer.toXml(player)
+      val restored = IPlayer.fromXml(xml)
+      restored.name should be("Bot")
+      restored shouldBe a[ComputerPlayer]
+    }
+
+    "toXml and fromXml UnknownPlayer" in {
+      val xml = IPlayer.toXml(UnknownPlayer)
+      val restored = IPlayer.fromXml(xml)
+      restored should be(UnknownPlayer)
+    }
+
+    "fromXml with unknown type returns UnknownPlayer" in {
+      val xml = <player type="Unknown" name="X" id=""/>
+      val restored = IPlayer.fromXml(xml)
+      restored should be(UnknownPlayer)
+    }
+
+    "fromXml with Computer type but unknown strategy returns UnknownPlayer" in {
+      val xml = <player type="Computer" name="Bot" id="" strategy="NoSuchStrategy"/>
+      val restored = IPlayer.fromXml(xml)
+      restored should be(UnknownPlayer)
     }
   }
 }
