@@ -7,9 +7,14 @@ case class PlayLowestPossibleCardStrategy() extends IStrategy {
 
   override def name: String = "Lowest possible card strategy"
 
-  override def play(cards: Vector[Card], lastPlayed: Card): Card = {
+  override def canPlay(cards: Vector[Card], lastPlayed: Card, playedCards: Vector[Card] = Vector.empty): Boolean =
+    cards.exists(c => Game.canBeat(c, lastPlayed))
+
+  override def play(cards: Vector[Card], lastPlayed: Card, playedCards: Vector[Card] = Vector.empty): Card = {
     val filtered = cards.filter(c => Game.canBeat(c, lastPlayed))
-    val ordered = cards.sortBy(c => Game.getPower(c))
+    val ordered = filtered.sortBy(c => Game.getPower(c))
     ordered.head
   }
+
+  override def shouldAcceptExchange(hand: Vector[Card], offeredCards: Vector[Card], position: String): Boolean = true
 }

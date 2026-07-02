@@ -6,13 +6,20 @@ trait Command {
   def redoStep(): Unit
 }
 
-case class UndoManager(undoStack: List[Command] = Nil, redoStack: List[Command] = Nil) {
-  def doStep(command: Command): UndoManager = {
+trait IUndoManager:
+  def doStep(command: Command): UndoManager
+  def undoStep(): UndoManager
+  def redoStep(): UndoManager
+
+case class UndoManager(undoStack: List[Command] = Nil, redoStack: List[Command] = Nil) extends IUndoManager {
+  def this() = this(List.empty, List.empty)
+
+  override def doStep(command: Command): UndoManager = {
     command.doStep()
     copy(undoStack = command :: undoStack, redoStack = Nil)
   }
 
-  def undoStep(): UndoManager = {
+  override def undoStep(): UndoManager = {
     undoStack match {
       case Nil => this
       case head :: tail =>
@@ -21,7 +28,7 @@ case class UndoManager(undoStack: List[Command] = Nil, redoStack: List[Command] 
     }
   }
 
-  def redoStep(): UndoManager = {
+  override def redoStep(): UndoManager = {
     redoStack match {
       case Nil => this
       case head :: tail =>

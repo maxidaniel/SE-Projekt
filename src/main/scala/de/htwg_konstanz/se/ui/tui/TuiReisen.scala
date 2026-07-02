@@ -142,7 +142,6 @@ case class TuiReisen @Inject() (controller: IController) extends Listener {
     controller.getGame.state match {
       case Playing =>
         renderScale = math.max(1, renderScale - 1)
-        renderer.windowSizeChanged()
       case _ =>
     }
   }
@@ -266,15 +265,26 @@ case class TuiReisen @Inject() (controller: IController) extends Listener {
       RenderObj.Right(panelX, 2, Vector("-" * panelWidth), width = Some(panelWidth))
     )
 
+    val isPlaying = game.state == Playing
+    val playersToShow =
+      if isPlaying then
+        game.currentPlayer match {
+          case Some(player) => Vector(player)
+          case None => Vector.empty
+        }
+      else
+        game.playerHands.keys.toVector
+
     val rows =
-      if game.playerHands.isEmpty then
+      if playersToShow.isEmpty then
         Vector(
           RenderObj.Left(panelX, 3, Vector("-"), width = Some(cardsWidth)),
           RenderObj.Right(panelX + cardsWidth + 1, 3, Vector("None"), width = Some(namesWidth))
         )
       else
-        game.playerHands.toVector.sortBy(_._1.toString).zipWithIndex.flatMap { case ((player, cards), index) =>
+        playersToShow.sortBy(_.toString).zipWithIndex.flatMap { case (player, index) =>
           val y = 3 + index
+          val cards = game.playerHands.getOrElse(player, Vector.empty)
           val cardsText =
             if cards.isEmpty then "-"
             else cards.zipWithIndex.map { case (card, cardIndex) =>

@@ -2,7 +2,6 @@ package de.htwg_konstanz.se.models
 
 import scala.collection.mutable.ListBuffer
 
-// TODO: Symbols
 enum CardSuit(val name: String, val symbol: String) {
   case Hearts extends CardSuit("hearts", "♥")
   case Diamonds extends CardSuit("diamonds", "♦")
@@ -32,9 +31,6 @@ class Card private (val rank: CardRank, val suit: CardSuit) {
   def render(scale: Int = 1): Vector[String] = {
     val r = if (rank == null) "?" else rank.symbol
     val s = if (suit == null) "?" else suit.symbol
-    
-    val width = 9 + (scale - 1) * 10 
-    val height = 5 + (scale - 1) * 6
     
     val innerWidth = 9 + (scale - 1) * 10
     val innerHeight = 5 + (scale - 1) * 6

@@ -1,6 +1,7 @@
 package de.htwg_konstanz.se.controller
 
-import com.google.inject.{Inject, Singleton}
+import com.google.inject.Inject
+import de.htwg_konstanz.se.controller.strategies.IStrategy
 import de.htwg_konstanz.se.models.*
 import de.htwg_konstanz.se.models.PlayerType.Computer
 import de.htwg_konstanz.se.util.{Command, Provider, UndoManager}
@@ -11,6 +12,7 @@ import scala.util.{Failure, Success}
 
 trait IController extends Provider {
   def join(name: String): Unit
+  def joinComputer(name: String, strategy: IStrategy): Unit
   def quit(uuid: UUID): Unit
   def start(): Unit
   
@@ -24,6 +26,7 @@ trait IController extends Provider {
   def redo(): Unit
   def reset(): Unit
   def exit(): Unit
+  def nextRound(): Unit
   def getGame: Game
   def getGameState: GameState
 
@@ -33,23 +36,21 @@ trait IController extends Provider {
   def playerCount: Int
 }
 
-@Singleton
-class GameController(@Inject private var game: Game) extends IController {
-  private var undoManager = UndoManager()
-
-  def this() = {
-    this(GameFactory.create(Seq.empty))
-  }
-
+class GameController @Inject() (private var game: Game, private var undoManager: UndoManager) extends IController {
   def join(name: String): Unit = {
     val player = HumanPlayer(name)
+    undoManager = undoManager.doStep(new JoinCommand(game, player))
+  }
+
+  def joinComputer(name: String, strategy: IStrategy): Unit = {
+    val player = ComputerPlayer(name, strategy)
     undoManager = undoManager.doStep(new JoinCommand(game, player))
   }
 
   def quit(uuid: UUID): Unit = {
     val player = getPlayer(uuid)
     if player.isEmpty then {
-      notifyEvent(GameErrorEvent(PlayerQuitEvent(UnknownPlayer(), game), Failure(new Exception(s"The player with id $uuid is not part of the game."))))
+      notifyEvent(GameErrorEvent(PlayerQuitEvent(UnknownPlayer, game), Failure(new Exception(s"The player with id $uuid is not part of the game."))))
     } else {
       undoManager = undoManager.doStep(new QuitCommand(game, player.get))
     }
@@ -84,7 +85,7 @@ class GameController(@Inject private var game: Game) extends IController {
             val lastPlayed = game.playedCards.lastOption
             player.playerType match {
               case Computer(strategy) =>
-                val card = strategy.play(hand, lastPlayed.getOrElse(Card.ThreeOfHearts))
+                val card = strategy.play(hand, lastPlayed.getOrElse(Card.ThreeOfHearts), game.playedCards)
                 playCard(player, card)
               case _ =>
                 notifyEvent(GameErrorEvent(
@@ -107,13 +108,31 @@ class GameController(@Inject private var game: Game) extends IController {
   }
 
   def passTrick(player: IPlayer): Unit = {
+    val oldGame = game
     game.passTrick(player) match {
       case Success(g) =>
         game = g
-        notifyEvent(GameChangedEvent(game))
+        notifyEvent(PassTrickEvent(player, game))
+        if (oldGame.playedCards.nonEmpty && g.playedCards.isEmpty) {
+          val leader = g.currentPlayer.getOrElse(player)
+          notifyEvent(TableClearedEvent(leader, game, TableClearReason.TrickWon))
+        }
       case Failure(f) =>
         notifyEvent(GameErrorEvent(
           PassTrickEvent(player, game),
+          Failure(f)
+        ))
+    }
+  }
+
+  def nextRound(): Unit = {
+    game.nextRound() match {
+      case Success(g) =>
+        game = g
+        notifyEvent(NextRoundEvent(game))
+      case Failure(f) =>
+        notifyEvent(GameErrorEvent(
+          GameEndedEvent(game, game.finishOrder.headOption.getOrElse(UnknownPlayer)),
           Failure(f)
         ))
     }
@@ -242,6 +261,7 @@ class GameController(@Inject private var game: Game) extends IController {
           } else {
             notifyEvent(CardPlayedEvent(player, card, game))
           }
+          notifyTableClearedIfNeeded(oldGame, g, player, card)
         case Failure(f) =>
           notifyEvent(GameErrorEvent(CardPlayedEvent(player, card, game), Failure(f)))
       }
@@ -265,6 +285,16 @@ class GameController(@Inject private var game: Game) extends IController {
   }
 
   def exit(): Unit = notifyEvent(GameExitEvent)
+
+  private def notifyTableClearedIfNeeded(oldGame: Game, newGame: Game, player: IPlayer, card: Card): Unit = {
+    if (oldGame.playedCards.nonEmpty && newGame.playedCards.isEmpty) {
+      val reason = if (Game.isBurnCard(card)) TableClearReason.BurnByTwo
+                   else TableClearReason.TrickWon
+      notifyEvent(TableClearedEvent(player, game, reason))
+    } else if (oldGame.playedCards.isEmpty && newGame.playedCards.isEmpty && newGame.trickCount == 0 && newGame.currentPlayer.contains(player)) {
+      notifyEvent(TableClearedEvent(player, game, TableClearReason.FourOfAKindBomb))
+    }
+  }
 
   def getGame: Game = game
 
