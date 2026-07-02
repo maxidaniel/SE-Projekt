@@ -37,8 +37,8 @@ case object WaitingForPlayersState extends GameState {
         Success(game.copy(playerHands = game.playerHands - player))
 
     case Start =>
-      if (game.playerHands.size < 2)
-        Failure(Exception("Can only start a new game with two or more players."))
+      if (game.playerHands.size < 4)
+        Failure(Exception("Can only start a new game with four or more players."))
       else
         dealCards(game).map(_.copy(state = PlayingState))
 
@@ -46,8 +46,8 @@ case object WaitingForPlayersState extends GameState {
       Failure(Exception("Can only abort in playing state!"))
 
     case Deal =>
-      if (game.playerHands.size < 2)
-        Failure(Exception("Can only deal cards when two or more players are in the game."))
+      if (game.playerHands.size < 4)
+        Failure(Exception("Can only deal cards when four or more players are in the game."))
       else
         dealCards(game)
 
@@ -56,6 +56,9 @@ case object WaitingForPlayersState extends GameState {
 
     case PassTrick(playerId) =>
       Failure(Exception("Can only pass tricks in playing state."))
+
+    case NextRound =>
+      Failure(Exception("Can only start next round in ended state."))
   }
 
   private def dealCards(game: Game): Try[Game] = {
@@ -68,7 +71,7 @@ case object WaitingForPlayersState extends GameState {
     }
 
     val first = dealtHands.find((p, hand) => hand.exists(c => c.rank == Card.ThreeOfClubs.rank && c.suit == Card.ThreeOfClubs.suit)).map(p => p._1)
-    Success(game.copy(playerHands = dealtHands, playedCards = Vector.empty, currentPlayer = first))
+    Success(game.copy(playerHands = dealtHands, playedCards = Vector.empty, currentPlayer = first, passedPlayers = Set.empty))
   }
 }
 
@@ -118,6 +121,9 @@ case object PlayingState extends GameState {
 
     case PassTrick(player) =>
       passTrick(game, player)
+
+    case NextRound =>
+      Failure(Exception("Can only start next round in ended state."))
   }
 
   private def playCard(game: Game, player: IPlayer, card: Card): Try[Game] = {
@@ -136,14 +142,31 @@ case object PlayingState extends GameState {
 
   private def leadTrick(game: Game, player: IPlayer, card: Card): Try[Game] = {
     val hand = game.playerHands(player)
-    val cardsOfRank = hand.count(c => c.rank == card.rank)
-    val validCount = math.min(cardsOfRank, 4)
+    val cardsOfRank = hand.filter(c => c.rank == card.rank)
     
-    if (validCount < 1) {
+    if (cardsOfRank.isEmpty) {
       Failure(Exception("Cannot lead with this card - must play cards of same rank."))
+    } else if (cardsOfRank.size >= 4) {
+      val fourCards = cardsOfRank.take(4)
+      val updatedHands = game.playerHands.updated(player, fourCards.foldLeft(hand)((h, c) => h.filterNot(_ == c)))
+      val isGameOver = updatedHands(player).isEmpty
+      val updatedState = if (isGameOver) EndedState else PlayingState
+      val updatedFinishOrder = if (isGameOver && !game.finishOrder.contains(player)) game.finishOrder :+ player else game.finishOrder
+      Success(game.copy(
+        playerHands = updatedHands,
+        playedCards = Vector.empty,
+        state = updatedState,
+        currentPlayer = if (isGameOver) None else Some(player),
+        trickCount = 0,
+        trickRank = None,
+        trickLeader = None,
+        passedPlayers = Set.empty,
+        finishOrder = updatedFinishOrder
+      ))
     } else {
       val updatedHands = game.playerHands.updated(player, hand.filterNot(_ == card))
       val updatedState = if (updatedHands(player).isEmpty) EndedState else PlayingState
+      val updatedFinishOrder = if (updatedHands(player).isEmpty && !game.finishOrder.contains(player)) game.finishOrder :+ player else game.finishOrder
       val nextPlayer = if (updatedState == EndedState) None
                        else game.playerHands.keys.find(_ != player)
       Success(game.copy(
@@ -153,7 +176,8 @@ case object PlayingState extends GameState {
         currentPlayer = nextPlayer,
         trickCount = 1,
         trickRank = Some(card.rank),
-        trickLeader = Some(player)
+        trickLeader = Some(player),
+        finishOrder = updatedFinishOrder
       ))
     }
   }
@@ -166,11 +190,9 @@ case object PlayingState extends GameState {
       Failure(Exception(s"Player $player does not have card $card in hand."))
     } else if (lastPlayed.isEmpty) {
       Failure(Exception("No cards have been played yet."))
-    } else if (!game.trickRank.contains(card.rank)) {
+    } else if (game.trickRank.exists(tr => Game.getRankPower(card.rank) <= Game.getRankPower(tr))) {
       val rankStr = game.trickRank.map(r => s"$r").getOrElse("unknown")
-      Failure(Exception(s"Must play cards of rank $rankStr, not ${card.rank}."))
-    } else if (game.trickCount >= 4) {
-      Failure(Exception("Trick already has 4 cards - cannot play more."))
+      Failure(Exception(s"Must play a card higher than $rankStr."))
     } else if (!Game.canBeat(card, lastPlayed.get)) {
       Failure(Exception("Played card must outrank the previous card."))
     } else {
@@ -183,23 +205,39 @@ case object PlayingState extends GameState {
     val updatedHands = game.playerHands.updated(player, hand.filterNot(_ == card))
     val newTrickCount = game.trickCount + 1
     val updatedState = if (updatedHands(player).isEmpty) EndedState else PlayingState
+    val isBurn = Game.isBurnCard(card)
+    val updatedFinishOrder = if (updatedHands(player).isEmpty && !game.finishOrder.contains(player)) game.finishOrder :+ player else game.finishOrder
+    
+    val trickOver = isBurn || updatedState == EndedState || {
+      val trickWinner = game.trickLeader.getOrElse(player)
+      val nonLeaderPlayers = game.playerHands.keys.filterNot(_ == trickWinner).toSet
+      val stillActive = nonLeaderPlayers -- game.passedPlayers - player
+      stillActive.isEmpty
+    }
     
     val nextPlayer = if (updatedState == EndedState) {
       None
-    } else if (newTrickCount >= 4) {
-      game.trickLeader
+    } else if (trickOver && isBurn) {
+      Some(player)
+    } else if (trickOver) {
+      Some(game.trickLeader.getOrElse(player))
     } else {
-      game.playerHands.keys.find(_ != player)
+      val trickWinner = game.trickLeader.getOrElse(player)
+      val nonLeaderPlayers = game.playerHands.keys.filterNot(_ == trickWinner).toSet
+      val stillActive = nonLeaderPlayers -- game.passedPlayers - player
+      stillActive.headOption
     }
     
     Success(game.copy(
       playerHands = updatedHands,
-      playedCards = game.playedCards :+ card,
+      playedCards = if (trickOver) Vector.empty else game.playedCards :+ card,
       state = updatedState,
       currentPlayer = nextPlayer,
-      trickCount = newTrickCount,
-      trickRank = game.trickRank,
-      trickLeader = game.trickLeader
+      trickCount = if (trickOver) 0 else newTrickCount,
+      trickRank = if (trickOver) None else game.trickRank,
+      trickLeader = if (trickOver) None else game.trickLeader,
+      passedPlayers = if (trickOver) Set.empty else game.passedPlayers,
+      finishOrder = updatedFinishOrder
     ))
   }
 
@@ -209,8 +247,37 @@ case object PlayingState extends GameState {
     } else if (game.trickLeader.contains(player)) {
       Failure(Exception("The trick leader cannot pass."))
     } else {
-      val nextPlayer = game.playerHands.keys.find(_ != player)
-      Success(game.copy(currentPlayer = nextPlayer))
+      val updatedPassed = game.passedPlayers + player
+      val otherPlayers = game.playerHands.keys.filterNot(_ == game.trickLeader.getOrElse(player)).toSet
+      val allOthersPassed = otherPlayers.subsetOf(updatedPassed)
+      
+      if (allOthersPassed) {
+        val trickWinner = game.trickLeader.get
+        val winnerHasCards = game.playerHands.get(trickWinner).exists(_.nonEmpty)
+        val updatedState = if (!winnerHasCards) EndedState else PlayingState
+        val updatedFinishOrder = if (!winnerHasCards && !game.finishOrder.contains(trickWinner)) game.finishOrder :+ trickWinner else game.finishOrder
+        
+        Success(game.copy(
+          playedCards = Vector.empty,
+          trickCount = 0,
+          trickRank = None,
+          trickLeader = None,
+          passedPlayers = Set.empty,
+          currentPlayer = if (updatedState == EndedState) None else Some(trickWinner),
+          state = updatedState,
+          finishOrder = updatedFinishOrder
+        ))
+      } else {
+        val nextPlayer = game.playerHands.keys.find(p => 
+          p != player && 
+          !updatedPassed.contains(p) && 
+          !game.trickLeader.contains(p)
+        ).orElse(game.trickLeader)
+        Success(game.copy(
+          currentPlayer = nextPlayer,
+          passedPlayers = updatedPassed
+        ))
+      }
     }
   }
 }
@@ -237,8 +304,59 @@ case object EndedState extends GameState {
   override def canPlayCard: Boolean = false
   override def canPassTrick: Boolean = false
 
-  override def transition(game: Game, operation: GameOperation): Try[Game] =
-    Failure(Exception("Cannot perform this operation in ended state."))
+  override def transition(game: Game, operation: GameOperation): Try[Game] = operation match {
+    case NextRound =>
+      val totalPlayers = game.playerHands.size
+      if (totalPlayers < 4) {
+        Failure(Exception("Need at least 4 players for next round."))
+      } else {
+        val newScores = game.finishOrder.zipWithIndex.foldLeft(game.scoredRanks) { case (scores, (player, position)) =>
+          val points = Game.scoreForPosition(position, totalPlayers)
+          scores.updated(player, scores.getOrElse(player, 0) + points)
+        }
+        val gameOver = newScores.exists(_._2 >= 11)
+        if (gameOver) {
+          Failure(Exception("Game is over - someone reached 11 points."))
+        } else {
+          val shuffledCards = DeckFactory.shuffledStandardDeck().cards
+          val players = game.playerHands.keys.toVector
+          val dealtHands = shuffledCards.zipWithIndex.foldLeft(Map.empty[IPlayer, Vector[Card]]) { case (hands, (card, index)) =>
+            val player = players(index % players.size)
+            hands.updated(player, hands.getOrElse(player, Vector.empty) :+ card)
+          }
+          val sortedByRank = game.finishOrder
+          val president = sortedByRank.headOption
+          val vicePresident = sortedByRank.drop(1).headOption
+          val viceScum = sortedByRank.dropRight(1).headOption
+          val scum = sortedByRank.lastOption
+          
+          val exchangedHands = (president, scum) match {
+            case (Some(pres), Some(sc)) =>
+              val vp = vicePresident.filter(p => p != pres && p != sc)
+              val vsc = viceScum.filter(p => p != pres && p != sc && !vp.contains(p))
+              Game.exchangeCards(pres, sc, vp, vsc, dealtHands)
+            case _ => dealtHands
+          }
+          
+          val first = exchangedHands.find((p, hand) => hand.exists(c => c.rank == Card.ThreeOfClubs.rank && c.suit == Card.ThreeOfClubs.suit)).map(p => p._1)
+          Success(Game(
+            playerHands = exchangedHands,
+            playedCards = Vector.empty,
+            state = PlayingState,
+            currentPlayer = first,
+            trickCount = 0,
+            trickRank = None,
+            trickLeader = None,
+            passedPlayers = Set.empty,
+            scoredRanks = newScores,
+            roundNumber = game.roundNumber + 1,
+            finishOrder = Vector.empty
+          ))
+        }
+      }
+    case _ =>
+      Failure(Exception("Cannot perform this operation in ended state."))
+  }
 }
 
 object GameState {
@@ -260,3 +378,4 @@ case object Abort extends GameOperation
 case object Deal extends GameOperation
 case class PlayCard(player: IPlayer, card: Card) extends GameOperation
 case class PassTrick(player: IPlayer) extends GameOperation
+case object NextRound extends GameOperation

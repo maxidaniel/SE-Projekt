@@ -4,85 +4,88 @@ import com.google.inject.Inject
 import de.htwg_konstanz.se.controller.IController
 import de.htwg_konstanz.se.models.*
 
-enum View {
+enum View:
   case Menu, Lobby, Game, Result
-}
 
-class PresidentViewModel(@Inject controller: IController) {
+class PresidentViewModel(@Inject controller: IController):
   var currentView: View = View.Menu
-  private var knownPlayers: Map[IPlayer, String] = Map.empty
   var statusMessage: String = "Welcome to President. Create a lobby to begin."
   var resultTitle: String = "Game finished"
   var isErrorMessage: Boolean = false
 
-  def handleEvent(event: GameEvent): Unit = {
-    event match {
-      case PlayerJoinEvent(player, game) =>
-        rememberPlayer(player)
-        statusMessage = s"${displayName(player)} joined the lobby."
-        currentView = if game.state == GameState.Playing then View.Game else View.Lobby
+  private var knownPlayers: Map[IPlayer, String] = Map.empty
 
-      case PlayerQuitEvent(player, game) =>
-        statusMessage = s"${displayName(player)} left the game."
-        knownPlayers -= player
-        currentView = if game.state == GameState.Playing then View.Game else View.Lobby
+  def handleEvent(event: GameEvent): Unit = event match
+    case PlayerJoinEvent(player, game) =>
+      rememberPlayer(player)
+      statusMessage = s"${displayName(player)} joined the lobby."
+      currentView = viewForGame(game)
 
-      case GameStartedEvent(game) =>
-        statusMessage = "The game has started."
-        currentView = View.Game
+    case PlayerQuitEvent(player, game) =>
+      statusMessage = s"${displayName(player)} left the game."
+      knownPlayers -= player
+      currentView = viewForGame(game)
 
-      case GameAbortedEvent(game) =>
-        resultTitle = "Game aborted"
-        statusMessage = "The current game was aborted."
-        currentView = View.Result
+    case GameStartedEvent(game) =>
+      statusMessage = "The game has started."
+      currentView = View.Game
 
-      case GameEndedEvent(game, winner) =>
-        rememberPlayer(winner)
-        resultTitle = "Game finished"
-        statusMessage = s"${displayName(winner)} wins the game."
-        currentView = View.Result
+    case GameAbortedEvent(game) =>
+      resultTitle = "Game aborted"
+      statusMessage = "The current game was aborted."
+      currentView = View.Result
 
-      case CardPlayedEvent(player, card, game) =>
-        statusMessage = s"${displayName(player)} played ${card.toString}."
-        currentView = viewForGame(game)
+    case GameEndedEvent(game, winner) =>
+      rememberPlayer(winner)
+      resultTitle = "Game finished"
+      statusMessage = s"${displayName(winner)} wins the game."
+      currentView = View.Result
 
-      case GameChangedEvent(game) =>
-        statusMessage = "Game state changed (Undo/Redo)."
-        currentView = viewForGame(game)
+    case CardPlayedEvent(player, card, game) =>
+      statusMessage = s"${displayName(player)} played ${card.toString}."
+      currentView = viewForGame(game)
 
-      case GameErrorEvent(cause, error) =>
-        isErrorMessage = true
-        cause match {
-          case PlayerJoinEvent(player, _) =>
-            statusMessage = s"Could not join: ${error.exception.getMessage}"
-          case PlayerQuitEvent(player, _) =>
-            statusMessage = s"Could not leave: ${error.exception.getMessage}"
-          case GameStartedEvent(_) =>
-            statusMessage = s"Could not start game: ${error.exception.getMessage}"
-          case CardPlayedEvent(player, card, _) =>
-            statusMessage = s"Could not play card: ${error.exception.getMessage}"
-          case _ =>
-            statusMessage = s"An error occurred: ${error.exception.getMessage}"
-        }
-    }
-  }
+    case PassTrickEvent(player, game) =>
+      rememberPlayer(player)
+      statusMessage = s"${displayName(player)} passed."
+      currentView = viewForGame(game)
 
-  def rememberPlayer(player: IPlayer): Unit = {
+    case NextRoundEvent(game) =>
+      statusMessage = s"Round ${game.roundNumber} started."
+      currentView = viewForGame(game)
+
+    case GameChangedEvent(game) =>
+      statusMessage = "Game state changed (Undo/Redo)."
+      currentView = viewForGame(game)
+
+    case TableClearedEvent(player, game, reason) =>
+      val reasonText = reason match
+        case TableClearReason.BurnByTwo      => "Two played (burn)"
+        case TableClearReason.FourOfAKindBomb => "Four of a kind (bomb)"
+        case TableClearReason.TrickWon       => "All players passed"
+      statusMessage = s"Table cleared: $reasonText"
+      currentView = viewForGame(game)
+
+    case GameErrorEvent(cause, error) =>
+      isErrorMessage = true
+      statusMessage = cause match
+        case PlayerJoinEvent(player, _)    => s"Could not join: ${error.exception.getMessage}"
+        case PlayerQuitEvent(player, _)   => s"Could not leave: ${error.exception.getMessage}"
+        case GameStartedEvent(_)           => s"Could not start game: ${error.exception.getMessage}"
+        case CardPlayedEvent(player, card, _) => s"Could not play card: ${error.exception.getMessage}"
+        case PassTrickEvent(player, _)     => s"Could not pass: ${error.exception.getMessage}"
+        case _                             => s"An error occurred: ${error.exception.getMessage}"
+
+  def rememberPlayer(player: IPlayer): Unit =
     knownPlayers += (player -> player.name)
-  }
 
-  def displayName(player: IPlayer): String = {
+  def displayName(player: IPlayer): String =
     knownPlayers.getOrElse(player, "Unknown Player")
-  }
 
-  def viewForGame(game: Game, fallbackState: Option[GameState] = None): View = {
-    val state = fallbackState.getOrElse(game.state)
-    state match {
-      case GameState.WaitingForPlayers | WaitingForPlayersState => View.Lobby
-      case GameState.Starting | StartingState => View.Game
-      case GameState.Playing | PlayingState => View.Game
-      case GameState.Aborted | AbortedState => View.Result
-      case GameState.Ended | EndedState => View.Result
-    }
-  }
-}
+  def viewForGame(game: Game, fallbackState: Option[GameState] = None): View =
+    (fallbackState.getOrElse(game.state)) match
+      case GameState.WaitingForPlayers => View.Lobby
+      case GameState.Starting          => View.Game
+      case GameState.Playing           => View.Game
+      case GameState.Aborted           => View.Result
+      case GameState.Ended             => View.Result

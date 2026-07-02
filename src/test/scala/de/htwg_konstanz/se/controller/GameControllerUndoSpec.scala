@@ -1,13 +1,14 @@
 package de.htwg_konstanz.se.controller
 
 import de.htwg_konstanz.se.models.*
+import de.htwg_konstanz.se.util.UndoManager
 import org.scalatest.OptionValues.*
 import org.scalatest.matchers.should.Matchers.*
 import org.scalatest.wordspec.AnyWordSpec
 
 class GameControllerUndoSpec extends AnyWordSpec {
   "A GameController with Undo/Redo" should {
-    val controller = new GameController()
+    val controller = new GameController(new Game(), new UndoManager())
 
     "undo joining a player" in {
       controller.join("Alice")
@@ -23,6 +24,8 @@ class GameControllerUndoSpec extends AnyWordSpec {
 
     "undo starting the game" in {
       controller.join("Bob")
+      controller.join("Charlie")
+      controller.join("Dave")
       controller.getGame.state should be(GameState.WaitingForPlayers)
       
       controller.start()
@@ -36,9 +39,11 @@ class GameControllerUndoSpec extends AnyWordSpec {
     }
 
     "undo playing a card" in {
-      val testController = new GameController()
+      val testController = new GameController(new Game(), new UndoManager())
       testController.join("Alice")
       testController.join("Bob")
+      testController.join("Charlie")
+      testController.join("Dave")
       testController.start()
       val game = testController.getGame
       val player = game.currentPlayer.value

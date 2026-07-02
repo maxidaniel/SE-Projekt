@@ -1,42 +1,34 @@
 package de.htwg_konstanz.se
 
-import com.google.inject.AbstractModule
+import com.google.inject.{AbstractModule, Provider, Singleton}
 import de.htwg_konstanz.se.controller.{GameController, IController}
-import de.htwg_konstanz.se.controller.strategies.{IStrategy, PlayLowestPossibleCardStrategy}
-import de.htwg_konstanz.se.models.{Game, IGame}
-import de.htwg_konstanz.se.ui.gui.{GuiPresident, PresidentViewModel}
+import de.htwg_konstanz.se.io.{ISaveManager, JsonSaveManager, XmlSaveManager}
+import de.htwg_konstanz.se.models.{Game, GameFactory}
+import de.htwg_konstanz.se.ui.gui.GuiPresident
 import de.htwg_konstanz.se.ui.tui.TuiReisen
-import com.google.inject.{Provider, Singleton}
+import de.htwg_konstanz.se.util.{IUndoManager, UndoManager}
 import net.codingwell.scalaguice.ScalaModule
 
-class PresidentModule extends AbstractModule with ScalaModule {
+class PresidentModule(val guiMode: GuiMode, val saveFormat: SaveFormat) extends AbstractModule with ScalaModule {
   override def configure(): Unit = {
-    bind(classOf[IController]).to(classOf[GameController])
-    bind(classOf[IGame]).to(classOf[Game])
-    bind(classOf[IStrategy]).to(classOf[PlayLowestPossibleCardStrategy])
-    bind(classOf[TuiReisen]).toProvider(new TuiReisenProvider)
-    bind(classOf[PresidentViewModel]).toProvider(new PresidentViewModelProvider)
-    bind(classOf[GuiPresident]).toProvider(new GuiPresidentProvider)
+    bind[IUndoManager].to[UndoManager]
+
+    bind[ISaveManager].to(saveFormat match {
+      case SaveFormat.Json => classOf[JsonSaveManager]
+      case SaveFormat.Xml => classOf[XmlSaveManager]
+    })
+
+    bind[Game].toProvider[GameProvider]
+
+    bind[IController].to[GameController].in[Singleton]()
+
+    guiMode match {
+      case GuiMode.Gui => bind(classOf[GuiPresident])
+      case GuiMode.Tui => bind(classOf[TuiReisen])
+    }
   }
 }
 
-class TuiReisenProvider extends Provider[TuiReisen] {
-  @com.google.inject.Inject
-  private var controller: IController = null
-  
-  def get(): TuiReisen = TuiReisen(controller)
-}
-
-class PresidentViewModelProvider extends Provider[PresidentViewModel] {
-  @com.google.inject.Inject
-  private var controller: IController = null
-  
-  def get(): PresidentViewModel = new PresidentViewModel(controller)
-}
-
-class GuiPresidentProvider extends Provider[GuiPresident] {
-  @com.google.inject.Inject
-  private var controller: IController = null
-  
-  def get(): GuiPresident = GuiPresident(controller)
+class GameProvider extends Provider[Game] {
+  override def get(): Game = GameFactory.create(Seq.empty)
 }

@@ -10,12 +10,16 @@ lazy val root = project
 
     scalaVersion := scala3Version,
 
-    libraryDependencies += "org.jline" % "jline-terminal" % "4.2.1",
-    libraryDependencies += "org.jline" % "jline-reader" % "4.2.1",
+    libraryDependencies += "org.jline" % "jline-terminal" % "4.3.1",
+    libraryDependencies += "org.jline" % "jline-reader" % "4.3.1",
     libraryDependencies += "org.scalactic" %% "scalactic" % "3.2.20",
     libraryDependencies += "org.scalatest" %% "scalatest" % "3.2.20" % "test",
-    libraryDependencies += "org.scalafx" %% "scalafx" % "21.0.0-R32",
+    libraryDependencies += "org.scalafx" %% "scalafx" % "25.0.2-R37",
     libraryDependencies += "net.codingwell" %% "scala-guice" % "7.0.0",
+
+    // IO
+    libraryDependencies += "org.scala-lang.modules" %% "scala-xml" % "2.4.0",
+    libraryDependencies += "org.playframework" %% "play-json" % "3.0.6",
 
     libraryDependencies ++= {
       // Determine OS version of JavaFX binaries

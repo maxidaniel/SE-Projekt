@@ -3,6 +3,7 @@ package de.htwg_konstanz.se.models
 import de.htwg_konstanz.se.controller.GameController
 import de.htwg_konstanz.se.models.GameState.{Ended, Playing}
 import de.htwg_konstanz.se.models.PlayingState
+import de.htwg_konstanz.se.util.UndoManager
 import org.scalatest.TryValues.*
 import org.scalatest.matchers.should.Matchers.*
 import org.scalatest.wordspec.AnyWordSpec
@@ -17,12 +18,13 @@ class GameSpec extends AnyWordSpec {
     Game(playerHands, playedCards, PlayingState, Some(cp), 1, Some(trickRank), Some(trickLeader))
   }
 
-  private def makeController(game: Game): GameController = new GameController(game)
+  private def makeController(game: Game): GameController = new GameController(game, new UndoManager())
 
   "A game" should {
     val alice = HumanPlayer("Alice")
     val bob = HumanPlayer("Bob")
     val charlie = HumanPlayer("Charlie")
+    val dave = HumanPlayer("Dave")
 
     "be empty by default" in {
       val game = new Game()
@@ -77,17 +79,17 @@ class GameSpec extends AnyWordSpec {
       throwable.getMessage should be("Cannot join a running game.")
     }
 
-    "start when waiting and at least two players exist" in {
-      val game = Game(Map(alice -> Vector.empty, bob -> Vector.empty), Vector.empty, GameState.WaitingForPlayers)
+    "start when waiting and at least four players exist" in {
+      val game = Game(Map(alice -> Vector.empty, bob -> Vector.empty, charlie -> Vector.empty, dave -> Vector.empty), Vector.empty, GameState.WaitingForPlayers)
 
       val started = game.start().success.value
       started.state should be(Playing)
       started.playerHands.values.map(_.size).sum should be(Card.standardDeckCards.size)
     }
 
-    "not start when fewer than two players exist" in {
-      val game = Game(Map(alice -> Vector.empty), Vector.empty, GameState.WaitingForPlayers)
-      game.start().failure.exception should have message "Can only start a new game with two or more players."
+    "not start when fewer than four players exist" in {
+      val game = Game(Map(alice -> Vector.empty, bob -> Vector.empty, charlie -> Vector.empty), Vector.empty, GameState.WaitingForPlayers)
+      game.start().failure.exception should have message "Can only start a new game with four or more players."
     }
 
     "not start when game is not in waiting state" in {
@@ -97,7 +99,7 @@ class GameSpec extends AnyWordSpec {
 
     "deal cards as evenly as possible" in {
       val game = Game(
-        Map(alice -> Vector.empty, bob -> Vector.empty, charlie -> Vector.empty),
+        Map(alice -> Vector.empty, bob -> Vector.empty, charlie -> Vector.empty, dave -> Vector.empty),
         Vector.empty,
         GameState.WaitingForPlayers,
       )
@@ -142,7 +144,7 @@ class GameSpec extends AnyWordSpec {
         playedCards = Vector(Card.TenOfHearts)
       )
 
-      game.playCard(alice, Card.FiveOfHearts).failure.exception should have message "Must play cards of rank Ten, not Five."
+      game.playCard(alice, Card.FiveOfHearts).failure.exception should have message "Must play a card higher than Ten."
     }
 
     "end the game when a player plays the last card in hand" in {
@@ -175,6 +177,77 @@ class GameSpec extends AnyWordSpec {
       game.playCard(alice, Card.AceOfClubs).failure.exception.getMessage should include("does not have card")
     }
 
+    "reject responding with a card that has equal rank to trick rank" in {
+      val game = Game(
+        Map(
+          alice -> Vector(Card.FiveOfHearts),
+          bob -> Vector(Card.FiveOfClubs),
+          charlie -> Vector(Card.SixOfHearts),
+          dave -> Vector(Card.SevenOfHearts)
+        ),
+        Vector(Card.FiveOfHearts),
+        PlayingState,
+        Some(bob),
+        1,
+        Some(CardRank.Five),
+        Some(alice)
+      )
+      game.playCard(bob, Card.FiveOfClubs).failure.exception.getMessage should include("higher")
+    }
+
+    "reject responding with a card that outranks last play but not trick rank" in {
+      val game = Game(
+        Map(
+          alice -> Vector(Card.SixOfHearts),
+          bob -> Vector(Card.FiveOfClubs),
+          charlie -> Vector(Card.SixOfClubs),
+          dave -> Vector(Card.SevenOfHearts)
+        ),
+        Vector(Card.FiveOfHearts),
+        PlayingState,
+        Some(bob),
+        1,
+        Some(CardRank.Five),
+        Some(alice)
+      )
+      game.playCard(bob, Card.FiveOfClubs).failure.exception.getMessage should include("higher")
+    }
+
+    "reject responding with lower card than last played card" in {
+      val game = Game(
+        Map(
+          alice -> Vector(Card.ThreeOfHearts),
+          bob -> Vector(Card.SixOfHearts),
+          charlie -> Vector(Card.FiveOfClubs),
+          dave -> Vector(Card.SevenOfHearts)
+        ),
+        Vector(Card.FourOfHearts, Card.SevenOfClubs),
+        PlayingState,
+        Some(charlie),
+        2,
+        Some(CardRank.Four),
+        Some(alice)
+      )
+      game.playCard(charlie, Card.FiveOfClubs).failure.exception.getMessage should include("outrank")
+    }
+
+    "succeed NextRound with empty finishOrder" in {
+      val game = Game(
+        Map(alice -> Vector(Card.FiveOfClubs), bob -> Vector(Card.SixOfHearts), charlie -> Vector(Card.SevenOfHearts), dave -> Vector(Card.EightOfHearts)),
+        Vector.empty,
+        GameState.Ended,
+        None,
+        0,
+        None,
+        None,
+        Set.empty,
+        Map.empty,
+        1,
+        Vector.empty
+      )
+      game.nextRound().isSuccess should be(true)
+    }
+
     "reject playing an unknown card" in {
       val game = Game(
         Map(alice -> Vector(Card.FourOfHearts)),
@@ -193,9 +266,299 @@ class GameSpec extends AnyWordSpec {
       game.playCard(bob, Card.FiveOfHearts).failure.exception.getMessage should include(bob.id.toString)
     }
 
-    "not deal cards when fewer than two players" in {
-      val game = Game(Map(alice -> Vector.empty), Vector.empty, GameState.WaitingForPlayers)
-      game.deal().failure.exception should have message "Can only deal cards when two or more players are in the game."
+    "burn the trick when leading four of a kind" in {
+      val game = Game(
+        Map(
+          alice -> Vector(Card.SevenOfHearts, Card.SevenOfClubs, Card.SevenOfSpades, Card.SevenOfDiamonds, Card.ThreeOfHearts),
+          bob -> Vector(Card.TenOfHearts),
+          charlie -> Vector(Card.JackOfHearts),
+          dave -> Vector(Card.QueenOfHearts)
+        ),
+        Vector.empty,
+        PlayingState,
+        Some(alice),
+        0,
+        None,
+        None
+      )
+      val afterPlay = game.playCard(alice, Card.SevenOfHearts).success.value
+      afterPlay.playedCards should be(Vector.empty)
+      afterPlay.trickCount should be(0)
+      afterPlay.trickRank should be(None)
+      afterPlay.trickLeader should be(None)
+      afterPlay.currentPlayer should be(Some(alice))
+      afterPlay.playerHands(alice) should be(Vector(Card.ThreeOfHearts))
+    }
+
+    "burn the trick when responding with a two" in {
+      val game = Game(
+        Map(
+          alice -> Vector(Card.ThreeOfHearts),
+          bob -> Vector(Card.TwoOfHearts, Card.FourOfHearts),
+          charlie -> Vector(Card.AceOfHearts),
+          dave -> Vector(Card.KingOfHearts)
+        ),
+        Vector(Card.AceOfClubs),
+        PlayingState,
+        Some(bob),
+        1,
+        Some(CardRank.Ace),
+        Some(alice)
+      )
+      val afterPlay = game.playCard(bob, Card.TwoOfHearts).success.value
+      afterPlay.playedCards should be(Vector.empty)
+      afterPlay.trickCount should be(0)
+      afterPlay.trickRank should be(None)
+      afterPlay.trickLeader should be(None)
+      afterPlay.currentPlayer should be(Some(bob))
+    }
+
+    "end game when burn leaves player with no cards" in {
+      val game = Game(
+        Map(
+          alice -> Vector(Card.ThreeOfHearts),
+          bob -> Vector(Card.TwoOfHearts),
+          charlie -> Vector(Card.AceOfHearts),
+          dave -> Vector(Card.KingOfHearts)
+        ),
+        Vector(Card.AceOfClubs),
+        PlayingState,
+        Some(bob),
+        1,
+        Some(CardRank.Ace),
+        Some(alice)
+      )
+      val afterPlay = game.playCard(bob, Card.TwoOfHearts).success.value
+      afterPlay.state should be(GameState.Ended)
+      afterPlay.playerHands(bob) should be(Vector.empty)
+    }
+
+    "end game when leading four of a kind empties hand" in {
+      val game = Game(
+        Map(
+          alice -> Vector(Card.SevenOfHearts, Card.SevenOfClubs, Card.SevenOfSpades, Card.SevenOfDiamonds),
+          bob -> Vector(Card.TenOfHearts),
+          charlie -> Vector(Card.JackOfHearts),
+          dave -> Vector(Card.QueenOfHearts)
+        ),
+        Vector.empty,
+        PlayingState,
+        Some(alice),
+        0,
+        None,
+        None
+      )
+      val afterPlay = game.playCard(alice, Card.SevenOfHearts).success.value
+      afterPlay.state should be(GameState.Ended)
+      afterPlay.playerHands(alice) should be(Vector.empty)
+      afterPlay.finishOrder should contain(alice)
+    }
+
+    "complete trick when responder is last non-leader to play" in {
+      val game = Game(
+        Map(
+          alice -> Vector(Card.KingOfHearts),
+          bob -> Vector(Card.AceOfSpades, Card.ThreeOfHearts),
+          charlie -> Vector(Card.QueenOfHearts),
+          dave -> Vector(Card.JackOfHearts)
+        ),
+        Vector(Card.FiveOfClubs),
+        PlayingState,
+        Some(bob),
+        1,
+        Some(CardRank.Five),
+        Some(alice),
+        Set(charlie, dave)
+      )
+      val afterPlay = game.playCard(bob, Card.AceOfSpades).success.value
+      afterPlay.trickCount should be(0)
+      afterPlay.trickRank should be(None)
+      afterPlay.currentPlayer should be(Some(alice))
+    }
+
+    "not deal cards when fewer than four players" in {
+      val game = Game(Map(alice -> Vector.empty, bob -> Vector.empty, charlie -> Vector.empty), Vector.empty, GameState.WaitingForPlayers)
+      game.deal().failure.exception should have message "Can only deal cards when four or more players are in the game."
+    }
+
+    "track finish order when players empty their hands" in {
+      val game = Game(
+        Map(
+          alice -> Vector(Card.ThreeOfHearts),
+          bob -> Vector(Card.FourOfHearts, Card.FiveOfHearts),
+          charlie -> Vector(Card.SixOfHearts),
+          dave -> Vector(Card.SevenOfHearts)
+        ),
+        Vector.empty,
+        PlayingState,
+        Some(alice),
+        0,
+        None,
+        None
+      )
+      val afterAlice = game.playCard(alice, Card.ThreeOfHearts).success.value
+      afterAlice.finishOrder should contain(alice)
+    }
+
+    "calculate scores correctly for round positions" in {
+      Game.scoreForPosition(0, 4) should be(2)
+      Game.scoreForPosition(1, 4) should be(1)
+      Game.scoreForPosition(2, 4) should be(0)
+      Game.scoreForPosition(3, 4) should be(0)
+    }
+
+    "start next round from ended state" in {
+      val game = Game(
+        Map(
+          alice -> Vector.empty,
+          bob -> Vector(Card.FourOfHearts),
+          charlie -> Vector(Card.SixOfHearts),
+          dave -> Vector(Card.SevenOfHearts)
+        ),
+        Vector.empty,
+        GameState.Ended,
+        None,
+        0,
+        None,
+        None,
+        Set.empty,
+        Map.empty,
+        1,
+        Vector(alice, bob, charlie, dave)
+      )
+      val nextRound = game.nextRound().success.value
+      nextRound.state should be(PlayingState)
+      nextRound.roundNumber should be(2)
+      nextRound.scoredRanks(alice) should be(2)
+      nextRound.scoredRanks(bob) should be(1)
+      nextRound.scoredRanks(charlie) should be(0)
+      nextRound.scoredRanks(dave) should be(0)
+      nextRound.finishOrder should be(Vector.empty)
+      nextRound.playerHands.values.map(_.size).sum should be(Card.standardDeckCards.size)
+    }
+
+    "fail next round when game is over (someone has 11+ points)" in {
+      val game = Game(
+        Map(
+          alice -> Vector.empty,
+          bob -> Vector(Card.FourOfHearts),
+          charlie -> Vector(Card.SixOfHearts),
+          dave -> Vector(Card.SevenOfHearts)
+        ),
+        Vector.empty,
+        GameState.Ended,
+        None,
+        0,
+        None,
+        None,
+        Set.empty,
+        Map(alice -> 11),
+        6,
+        Vector(alice)
+      )
+      game.nextRound().isFailure should be(true)
+    }
+
+    "exchange cards between president and scum" in {
+      val presHand = Vector(Card.ThreeOfHearts, Card.FourOfHearts, Card.FiveOfHearts)
+      val scumHand = Vector(Card.KingOfHearts, Card.AceOfHearts, Card.TwoOfHearts)
+      val vpHand = Vector(Card.SixOfHearts, Card.SevenOfHearts)
+      val vscumHand = Vector(Card.TenOfHearts, Card.JackOfHearts)
+      
+      val playerHands: Map[IPlayer, Vector[Card]] = Map(
+        alice -> presHand,
+        bob -> scumHand,
+        charlie -> vpHand,
+        dave -> vscumHand
+      )
+      
+      val result = Game.exchangeCards(alice, bob, Some(charlie), Some(dave), playerHands)
+      
+      result(alice) should contain(Card.AceOfHearts)
+      result(alice) should contain(Card.TwoOfHearts)
+      result(alice) should not contain(Card.ThreeOfHearts)
+      
+      result(bob) should contain(Card.ThreeOfHearts)
+      result(bob) should contain(Card.FourOfHearts)
+      result(bob) should not contain(Card.TwoOfHearts)
+      
+      result(charlie) should contain(Card.JackOfHearts)
+      result(charlie) should not contain(Card.SixOfHearts)
+      
+      result(dave) should contain(Card.SixOfHearts)
+      result(dave) should not contain(Card.JackOfHearts)
+    }
+
+    "get best cards sorted by rank descending" in {
+      val hand = Vector(Card.ThreeOfHearts, Card.AceOfHearts, Card.KingOfHearts, Card.FiveOfHearts)
+      val best = Game.getBestCards(hand, 2)
+      best should be(Vector(Card.AceOfHearts, Card.KingOfHearts))
+    }
+
+    "get worst cards sorted by rank ascending" in {
+      val hand = Vector(Card.ThreeOfHearts, Card.AceOfHearts, Card.KingOfHearts, Card.FiveOfHearts)
+      val worst = Game.getWorstCards(hand, 2)
+      worst should be(Vector(Card.ThreeOfHearts, Card.FiveOfHearts))
+    }
+
+    "identify four of a kind" in {
+      val fourCards = Vector(Card.SevenOfHearts, Card.SevenOfClubs, Card.SevenOfSpades, Card.SevenOfDiamonds)
+      Game.isFourOfAKind(fourCards) should be(true)
+    }
+
+    "reject non-four of a kind (3 cards)" in {
+      val threeCards = Vector(Card.SevenOfHearts, Card.SevenOfClubs, Card.SevenOfSpades)
+      Game.isFourOfAKind(threeCards) should be(false)
+    }
+
+    "reject non-four of a kind (mixed ranks)" in {
+      val mixedCards = Vector(Card.SevenOfHearts, Card.EightOfClubs, Card.NineOfSpades, Card.TenOfDiamonds)
+      Game.isFourOfAKind(mixedCards) should be(false)
+    }
+
+    "reject non-four of a kind (empty)" in {
+      Game.isFourOfAKind(Vector.empty) should be(false)
+    }
+
+    "passTrick delegates to state.transition" in {
+      val bob = HumanPlayer("Bob")
+      val game = Game(
+        Map(alice -> Vector(Card.KingOfHearts), bob -> Vector(Card.AceOfSpades)),
+        Vector(Card.FiveOfClubs),
+        PlayingState,
+        Some(bob),
+        1,
+        Some(CardRank.Five),
+        Some(alice)
+      )
+      game.passTrick(bob).isSuccess should be(true)
+    }
+
+    "passTrick fail when no trick led" in {
+      val game = Game(
+        Map(alice -> Vector(Card.KingOfHearts)),
+        Vector.empty,
+        PlayingState,
+        Some(alice),
+        0,
+        None,
+        None
+      )
+      game.passTrick(alice).isFailure should be(true)
+    }
+
+    "passTrick fail when leader tries to pass" in {
+      val bob = HumanPlayer("Bob")
+      val game = Game(
+        Map(alice -> Vector(Card.KingOfHearts), bob -> Vector(Card.AceOfSpades)),
+        Vector(Card.FiveOfClubs),
+        PlayingState,
+        Some(bob),
+        1,
+        Some(CardRank.Five),
+        Some(alice)
+      )
+      game.passTrick(alice).isFailure should be(true)
     }
   }
 
