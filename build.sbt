@@ -12,6 +12,7 @@ lazy val root = project
 
     libraryDependencies += "org.jline" % "jline-terminal" % "4.3.1",
     libraryDependencies += "org.jline" % "jline-reader" % "4.3.1",
+    libraryDependencies += "org.jline" % "jline-console-ui" % "4.3.1",
     libraryDependencies += "org.scalactic" %% "scalactic" % "3.2.20",
     libraryDependencies += "org.scalatest" %% "scalatest" % "3.2.20" % "test",
     libraryDependencies += "org.scalafx" %% "scalafx" % "25.0.2-R37",

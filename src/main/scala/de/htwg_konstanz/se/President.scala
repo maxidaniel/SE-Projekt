@@ -24,6 +24,7 @@ given CommandLineParser.FromString[SaveFormat] with
 
 object President {
   def main(args: Array[String]): Unit = {
+    println(args.mkString(", "))
 
     val mode =
       if args contains "--gui" then GuiMode.Gui

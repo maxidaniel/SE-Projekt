@@ -12,22 +12,20 @@ case class CardRenderResult(
     step: Int
 )
 
-case object CardRenderer {
+object CardRenderer:
   def render(
       cards: Seq[Card],
       terminalWidth: Int,
       terminalHeight: Int,
       options: CardRendererOptions = CardRendererOptions()
-  ): CardRenderResult = {
+  ): CardRenderResult =
     if cards.isEmpty || terminalWidth <= 0 || terminalHeight <= 0 then return CardRenderResult(Vector.empty, 0, 0, 1, 0)
 
     val requestedScale = math.max(1, options.userScale)
 
     val chosenScale =
       (requestedScale to 1 by -1)
-        .find { scale =>
-          cardHeight(scale) <= terminalHeight
-        }
+        .find(scale => cardHeight(scale) <= terminalHeight)
         .getOrElse(1)
 
     val cardHeightAtScale = cardHeight(chosenScale)
@@ -46,7 +44,7 @@ case object CardRenderer {
     val targetHeight = math.min(terminalHeight, cardHeightAtScale)
 
     val raw = Array.fill(targetHeight, targetWidth)(' ')
-    cards.zipWithIndex.foreach { case (card, index) =>
+    cards.zipWithIndex.foreach { (card, index) =>
       drawCard(raw, card.render(chosenScale), index * step, 0)
     }
 
@@ -59,18 +57,16 @@ case object CardRenderer {
       scale = chosenScale,
       step = step
     )
-  }
 
-  private def drawCard(canvas: Array[Array[Char]], cardLines: Vector[String], xOffset: Int, yOffset: Int): Unit = {
-    cardLines.zipWithIndex.foreach { case (line, y) =>
+  private def drawCard(canvas: Array[Array[Char]], cardLines: Vector[String], xOffset: Int, yOffset: Int): Unit =
+    cardLines.zipWithIndex.foreach { (line, y) =>
       val canvasY = yOffset + y
       if canvasY >= 0 && canvasY < canvas.length then
-        line.zipWithIndex.foreach { case (char, x) =>
+        line.zipWithIndex.foreach { (char, x) =>
           val canvasX = xOffset + x
           if canvasX >= 0 && canvasX < canvas(canvasY).length then canvas(canvasY)(canvasX) = char
         }
     }
-  }
 
   private def trimLine(line: String): String =
     line.reverse.dropWhile(_ == ' ').reverse
@@ -80,4 +76,3 @@ case object CardRenderer {
 
   private def cardHeight(scale: Int): Int =
     Card.AceOfSpades.render(scale).length
-}

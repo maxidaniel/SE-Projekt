@@ -1,0 +1,139 @@
+{
+  "playerHands" : [ {
+    "player" : {
+      "type" : "Computer",
+      "name" : "Bot 1",
+      "id" : "3132a3d3-f22c-4e8a-b563-fbcb4f605144",
+      "strategy" : "PlayLowestPossibleCardStrategy"
+    },
+    "cards" : [ ]
+  }, {
+    "player" : {
+      "type" : "Computer",
+      "name" : "Bot 2",
+      "id" : "35443366-1880-411f-a127-3cd474e27e18",
+      "strategy" : "PlayLowestPossibleCardStrategy"
+    },
+    "cards" : [ {
+      "rank" : "ten",
+      "suit" : "spades"
+    }, {
+      "rank" : "five",
+      "suit" : "hearts"
+    }, {
+      "rank" : "nine",
+      "suit" : "hearts"
+    }, {
+      "rank" : "three",
+      "suit" : "diamonds"
+    } ]
+  }, {
+    "player" : {
+      "type" : "Computer",
+      "name" : "Bot 3",
+      "id" : "345772e9-e124-45f7-b130-caab6d2257cd",
+      "strategy" : "PlayLowestPossibleCardStrategy"
+    },
+    "cards" : [ {
+      "rank" : "eight",
+      "suit" : "clubs"
+    }, {
+      "rank" : "eight",
+      "suit" : "diamonds"
+    }, {
+      "rank" : "six",
+      "suit" : "diamonds"
+    }, {
+      "rank" : "eight",
+      "suit" : "hearts"
+    } ]
+  }, {
+    "player" : {
+      "type" : "Computer",
+      "name" : "Bot 4",
+      "id" : "62e8018c-4db1-42bb-9fed-ab748cfb39aa",
+      "strategy" : "PlayLowestPossibleCardStrategy"
+    },
+    "cards" : [ {
+      "rank" : "four",
+      "suit" : "clubs"
+    }, {
+      "rank" : "jack",
+      "suit" : "clubs"
+    }, {
+      "rank" : "two",
+      "suit" : "diamonds"
+    }, {
+      "rank" : "six",
+      "suit" : "clubs"
+    }, {
+      "rank" : "seven",
+      "suit" : "clubs"
+    }, {
+      "rank" : "seven",
+      "suit" : "diamonds"
+    }, {
+      "rank" : "eight",
+      "suit" : "spades"
+    }, {
+      "rank" : "queen",
+      "suit" : "diamonds"
+    }, {
+      "rank" : "three",
+      "suit" : "spades"
+    }, {
+      "rank" : "ace",
+      "suit" : "spades"
+    }, {
+      "rank" : "ten",
+      "suit" : "hearts"
+    } ]
+  } ],
+  "playedCards" : [ ],
+  "state" : "Ended",
+  "currentPlayer" : null,
+  "trickCount" : 0,
+  "trickRank" : null,
+  "trickLeader" : null,
+  "passedPlayers" : [ ],
+  "scoredRanks" : [ {
+    "player" : {
+      "type" : "Computer",
+      "name" : "Bot 1",
+      "id" : "3132a3d3-f22c-4e8a-b563-fbcb4f605144",
+      "strategy" : "PlayLowestPossibleCardStrategy"
+    },
+    "score" : 10
+  }, {
+    "player" : {
+      "type" : "Computer",
+      "name" : "Bot 2",
+      "id" : "35443366-1880-411f-a127-3cd474e27e18",
+      "strategy" : "PlayLowestPossibleCardStrategy"
+    },
+    "score" : 4
+  }, {
+    "player" : {
+      "type" : "Computer",
+      "name" : "Bot 3",
+      "id" : "345772e9-e124-45f7-b130-caab6d2257cd",
+      "strategy" : "PlayLowestPossibleCardStrategy"
+    },
+    "score" : 6
+  }, {
+    "player" : {
+      "type" : "Computer",
+      "name" : "Bot 4",
+      "id" : "62e8018c-4db1-42bb-9fed-ab748cfb39aa",
+      "strategy" : "PlayLowestPossibleCardStrategy"
+    },
+    "score" : 4
+  } ],
+  "roundNumber" : 13,
+  "finishOrder" : [ {
+    "type" : "Computer",
+    "name" : "Bot 1",
+    "id" : "3132a3d3-f22c-4e8a-b563-fbcb4f605144",
+    "strategy" : "PlayLowestPossibleCardStrategy"
+  } ]
+}

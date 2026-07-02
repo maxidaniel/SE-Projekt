@@ -13,7 +13,8 @@ case class XmlSaveManager() extends ISaveManager:
       var file = File(savePath)
       if file.isDirectory then file = Paths.get(file.getPath, "save.xml").toFile
 
-      if !file.getParentFile.exists() then file.getParentFile.mkdirs()
+      val parent = file.getParentFile
+      if parent != null && !parent.exists() then parent.mkdirs()
 
       val xml = Game.toXml(game)
       XML.save(file.getAbsolutePath, xml, "UTF-8", true, null)

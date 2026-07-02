@@ -13,7 +13,8 @@ case class JsonSaveManager() extends ISaveManager:
       var file = File(savePath)
       if file.isDirectory then file = Paths.get(file.getPath, "save.json").toFile
 
-      if !file.getParentFile.exists() then file.getParentFile.mkdirs()
+      val parent = file.getParentFile
+      if parent != null && !parent.exists() then parent.mkdirs()
 
       val json = Json.toJson(game)
       Files.writeString(file.toPath, Json.prettyPrint(json))
