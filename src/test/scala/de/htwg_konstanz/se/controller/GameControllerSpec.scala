@@ -333,6 +333,29 @@ class GameControllerSpec extends AnyWordSpec {
       observed.value.card should be(Card.FiveOfClubs)
     }
 
+    "force computer to play Three of Clubs on first trick" in {
+      val strategy = PlayLowestPossibleCardStrategy()
+      val comp = ComputerPlayer("Com", strategy)
+      val game = Game(
+        Map(comp -> Vector(Card.ThreeOfClubs, Card.FiveOfClubs), alice -> Vector(Card.SixOfHearts)),
+        Vector.empty,
+        PlayingState,
+        Some(comp),
+        0,
+        None,
+        None,
+        isFirstTrick = true
+      )
+      val controller = new GameController(game, new UndoManager(), stubSaveManager)
+      var observed: Option[CardPlayedEvent] = None
+      controller.add {
+        case e: CardPlayedEvent => observed = Some(e)
+        case _                  =>
+      }
+      controller.playCard(comp)
+      observed.value.card should be(Card.ThreeOfClubs)
+    }
+
     "reject computer play when not player's turn" in {
       val strategy = PlayLowestPossibleCardStrategy()
       val comp = ComputerPlayer("Com", strategy)

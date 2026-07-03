@@ -28,6 +28,7 @@ case class GuiPresident @Inject() (controller: IController, presenter: IPresente
     case _             =>
       runOnFxThread {
         presenter.handleEvent(event)
+        refreshView()
       }
   }
 
@@ -77,6 +78,7 @@ case class GuiPresident @Inject() (controller: IController, presenter: IPresente
             onFinished = _ => {
               showingSplash = false
               presenter.viewModel.currentView = View.Menu
+              presenter.onViewChanged = Some(() => runOnFxThread { refreshView() })
               refreshView()
             }
           }

@@ -1,5 +1,6 @@
 package de.htwg_konstanz.se.ui.tui
 
+import com.google.inject.Inject
 import de.htwg_konstanz.se.controller.IController
 import de.htwg_konstanz.se.controller.strategies.IStrategy
 import de.htwg_konstanz.se.models.*
@@ -8,7 +9,7 @@ import de.htwg_konstanz.se.ui.IPresenter
 import de.htwg_konstanz.se.ui.gui.View
 import de.htwg_konstanz.se.ui.gui.PresidentViewModel
 
-class TuiPresenter(
+class TuiPresenter @Inject() (
     val controller: IController
 ) extends IPresenter:
   val viewModel: PresidentViewModel = PresidentViewModel(controller)
@@ -20,6 +21,7 @@ class TuiPresenter(
 
   def navigateTo(view: View): Unit =
     viewModel.currentView = view
+    onViewChanged.foreach(_())
 
   def addPlayer(name: String): Unit =
     val trimmed = name.trim

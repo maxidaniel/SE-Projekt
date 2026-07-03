@@ -154,6 +154,7 @@ case class TuiReisen @Inject() (controller: IController, presenter: IPresenter) 
       Thread.sleep(2500)
 
       presenter.viewModel.currentView = View.Menu
+      presenter.onViewChanged = Some(() => refresh())
       refresh()
 
       while !shouldClose do

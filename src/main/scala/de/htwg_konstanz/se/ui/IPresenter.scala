@@ -6,6 +6,7 @@ import de.htwg_konstanz.se.models.*
 import de.htwg_konstanz.se.ui.gui.{PresidentViewModel, View}
 
 trait IPresenter {
+  var onViewChanged: Option[() => Unit] = None
   def controller: IController
   def viewModel: PresidentViewModel
 

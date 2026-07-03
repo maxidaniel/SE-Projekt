@@ -71,10 +71,13 @@ class GameController @Inject() (
             val lastPlayed = game.playedCards.lastOption
             player.playerType match {
               case Computer(strategy) =>
-                val card = strategy.play(hand, lastPlayed, game.playedCards)
-                card match
-                  case Some(c) => playCard(player, c)
-                  case None    => passTrick(player)
+                if game.isFirstTrick && hand.exists(_ == Card.ThreeOfClubs) then
+                  playCard(player, Card.ThreeOfClubs)
+                else
+                  val card = strategy.play(hand, lastPlayed, game.playedCards)
+                  card match
+                    case Some(c) => playCard(player, c)
+                    case None    => passTrick(player)
               case _ =>
                 notifyEvent(
                   GameErrorEvent(
