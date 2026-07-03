@@ -2,6 +2,7 @@ package de.htwg_konstanz.se.ui.gui
 
 import de.htwg_konstanz.se.controller.strategies.IStrategy
 import de.htwg_konstanz.se.models.*
+import de.htwg_konstanz.se.ui.IPresenter
 import de.htwg_konstanz.se.ui.gui.views.*
 import scalafx.collections.ObservableHashSet
 import scalafx.geometry.Pos
@@ -22,14 +23,14 @@ object GuiViews {
 
   def logoText: String = Logo.mkString("\n")
 
-  def menuView(p: IGuiPresenter): Parent = MenuView(p)
-  def lobbyView(p: IGuiPresenter): Parent = LobbyView(p)
-  def gameView(p: IGuiPresenter): Parent = GameView(p)
-  def resultView(p: IGuiPresenter): Parent = ResultView(p)
+  def menuView(p: IPresenter): Parent = MenuView(p)
+  def lobbyView(p: IPresenter): Parent = LobbyView(p)
+  def gameView(p: IPresenter): Parent = GameView(p)
+  def resultView(p: IPresenter): Parent = ResultView(p)
 
   // ── Shared helpers ─────────────────────────────────────────────────────
 
-  def statusLabel(p: IGuiPresenter): Label = new Label(p.statusMessage) {
+  def statusLabel(p: IPresenter): Label = new Label(p.statusMessage) {
     wrapText = true
     style =
       if p.isErrorMessage then
@@ -67,7 +68,7 @@ object GuiViews {
     )
   }
 
-  private def playerLabel(player: IPlayer, p: IGuiPresenter): String = {
+  private def playerLabel(player: IPlayer, p: IPresenter): String = {
     val name = player.name
     player.playerType.strategy match
       case Some(strategy) => s"$name (${strategy.name})"
@@ -80,7 +81,7 @@ object GuiViews {
       case None           => ""
   }
 
-  def playerList(p: IGuiPresenter, game: Game, allowRemove: Boolean): VBox = {
+  def playerList(p: IPresenter, game: Game, allowRemove: Boolean): VBox = {
     val entries = game.playerHands.toVector.sortBy(_._1.toString)
     if entries.isEmpty then
       return new VBox {
@@ -130,7 +131,7 @@ object GuiViews {
     }
   }
 
-  def scorePanel(p: IGuiPresenter, game: Game): VBox = {
+  def scorePanel(p: IPresenter, game: Game): VBox = {
     val entries = game.playerHands.toVector.sortBy(_._1.toString)
     if entries.isEmpty then
       return new VBox {
@@ -178,7 +179,7 @@ object GuiViews {
     }
   }
 
-  def handsPanel(p: IGuiPresenter, game: Game, selectedCards: ObservableHashSet[Card]): VBox = {
+  def handsPanel(p: IPresenter, game: Game, selectedCards: ObservableHashSet[Card]): VBox = {
     val isPlaying = game.state == GameState.Playing
     val entries =
       if isPlaying then
@@ -223,10 +224,10 @@ object GuiViews {
   }
 
   def cardFlow(
-      p: IGuiPresenter,
-      cards: Seq[Card],
-      playerId: Option[IPlayer],
-      selectedCards: ObservableHashSet[Card]
+                p: IPresenter,
+                cards: Seq[Card],
+                playerId: Option[IPlayer],
+                selectedCards: ObservableHashSet[Card]
   ): Parent = new FlowPane {
     hgap = 8
     vgap = 8
@@ -236,11 +237,11 @@ object GuiViews {
   }
 
   def cardView(
-      p: IGuiPresenter,
-      card: Card,
-      index: Int,
-      playerId: Option[IPlayer],
-      selectedCards: ObservableHashSet[Card]
+                p: IPresenter,
+                card: Card,
+                index: Int,
+                playerId: Option[IPlayer],
+                selectedCards: ObservableHashSet[Card]
   ): VBox = {
     val red = card.suit == CardSuit.Hearts || card.suit == CardSuit.Diamonds
     val isSelectable = playerId.isDefined

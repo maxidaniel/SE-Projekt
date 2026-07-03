@@ -1,14 +1,15 @@
 package de.htwg_konstanz.se.ui.gui.views
 
 import de.htwg_konstanz.se.models.GameState
-import de.htwg_konstanz.se.ui.gui.{GuiViews, IGuiPresenter}
+import de.htwg_konstanz.se.ui.IPresenter
+import de.htwg_konstanz.se.ui.gui.GuiViews
 import scalafx.Includes.*
 import scalafx.geometry.{Insets, Pos}
 import scalafx.scene.control.*
 import scalafx.scene.layout.*
 import scalafx.stage.FileChooser
 
-case class ResultView(p: IGuiPresenter) extends BorderPane {
+case class ResultView(p: IPresenter) extends BorderPane {
   padding = Insets(24)
 
   var titleLabel: Label = GuiViews.titleLabel(p.resultTitle)

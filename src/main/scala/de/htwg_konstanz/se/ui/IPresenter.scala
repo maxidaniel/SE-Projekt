@@ -1,11 +1,11 @@
-package de.htwg_konstanz.se.ui.gui
+package de.htwg_konstanz.se.ui
 
 import de.htwg_konstanz.se.controller.IController
 import de.htwg_konstanz.se.controller.strategies.IStrategy
 import de.htwg_konstanz.se.models.*
+import de.htwg_konstanz.se.ui.gui.{PresidentViewModel, View}
 
-/** Testable interface for GUI actions. No JavaFX dependencies. */
-trait IGuiPresenter {
+trait IPresenter {
   def controller: IController
   def viewModel: PresidentViewModel
 
@@ -36,4 +36,6 @@ trait IGuiPresenter {
 
   def isComputerTurn: Boolean
   def triggerComputerPlay(): Unit
+
+  def handleEvent(event: GameEvent): Unit
 }

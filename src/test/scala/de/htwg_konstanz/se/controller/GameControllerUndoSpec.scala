@@ -49,8 +49,8 @@ class GameControllerUndoSpec extends AnyWordSpec {
       testController.start()
       val game = testController.getGame
       val player = game.currentPlayer.value
-      val cards = game.playerHands.get(player)
-      val card = cards.value.head
+      val cards = game.playerHands.get(player).value
+      val card = cards.find(_ == Card.ThreeOfClubs).value
 
       testController.playCard(player, card)
       testController.getGame.playedCards should contain(card)

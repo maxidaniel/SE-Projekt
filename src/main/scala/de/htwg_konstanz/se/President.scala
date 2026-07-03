@@ -5,22 +5,11 @@ import de.htwg_konstanz.se.ui.gui.GuiPresident
 import de.htwg_konstanz.se.ui.tui.TuiReisen
 import net.codingwell.scalaguice.InjectorExtensions.*
 
-import scala.util.CommandLineParser
-import scala.util.CommandLineParser.FromString
-
 enum GuiMode:
   case Gui, Tui
 
 enum SaveFormat:
   case Xml, Json
-
-given CommandLineParser.FromString[GuiMode] with
-  override def fromString(s: String): GuiMode = GuiMode.valueOf(s)
-
-given CommandLineParser.FromString[SaveFormat] with
-  override def fromString(s: String): SaveFormat = SaveFormat.valueOf(s)
-
-  override def fromStringOption(s: String): Option[SaveFormat] = super.fromStringOption(s)
 
 object President {
   def main(args: Array[String]): Unit = {

@@ -143,7 +143,7 @@ class GameSpec extends AnyWordSpec {
     }
 
     "allow a player to play a valid first card" in {
-      val playedCard = Card.ThreeOfHearts
+      val playedCard = Card.ThreeOfClubs
       val game = Game(
         Map(
           alice -> Vector(playedCard, Card.KingOfHearts),
@@ -181,7 +181,8 @@ class GameSpec extends AnyWordSpec {
         Some(alice),
         0,
         None,
-        None
+        None,
+        isFirstTrick = false
       )
 
       val ended = game.playCard(alice, winningCard).success.value
@@ -315,7 +316,8 @@ class GameSpec extends AnyWordSpec {
         Some(alice),
         0,
         None,
-        None
+        None,
+        isFirstTrick = false
       )
       val afterPlay = game.playCard(alice, Card.SevenOfHearts).success.value
       afterPlay.playedCards should be(Vector.empty)
@@ -382,7 +384,8 @@ class GameSpec extends AnyWordSpec {
         Some(alice),
         0,
         None,
-        None
+        None,
+        isFirstTrick = false
       )
       val afterPlay = game.playCard(alice, Card.SevenOfHearts).success.value
       afterPlay.state should be(GameState.Ended)
@@ -434,7 +437,8 @@ class GameSpec extends AnyWordSpec {
         Some(alice),
         0,
         None,
-        None
+        None,
+        isFirstTrick = false
       )
       val afterAlice = game.playCard(alice, Card.ThreeOfHearts).success.value
       afterAlice.finishOrder should contain(alice)
@@ -632,6 +636,7 @@ class GameSpec extends AnyWordSpec {
       restored.scoredRanks should be(Map(alice -> 3, bob -> 1))
       restored.roundNumber should be(2)
       restored.finishOrder should be(Vector(alice, bob))
+      restored.isFirstTrick should be(true)
     }
 
     "round-trip a game with no current player through JSON" in {
@@ -682,6 +687,7 @@ class GameSpec extends AnyWordSpec {
       restored.scoredRanks should be(Map(alice -> 3))
       restored.roundNumber should be(2)
       restored.finishOrder should be(Vector(alice, bob))
+      restored.isFirstTrick should be(true)
     }
 
     "round-trip a game with no current player through XML" in {
@@ -711,6 +717,65 @@ class GameSpec extends AnyWordSpec {
       val xml = Game.toXml(game)
       val restored = Game.fromXml(xml)
       restored.finishOrder should be(Vector.empty)
+    }
+
+    "round-trip isFirstTrick=false through JSON" in {
+      val game = Game(
+        playerHands = Map(alice -> Vector(Card.ThreeOfClubs)),
+        playedCards = Vector.empty,
+        state = PlayingState,
+        isFirstTrick = false
+      )
+      val json = play.api.libs.json.Json.toJson(game)
+      val restored = json.as[Game]
+      restored.isFirstTrick should be(false)
+    }
+
+    "round-trip isFirstTrick=false through XML" in {
+      val game = Game(
+        playerHands = Map(alice -> Vector(Card.ThreeOfClubs)),
+        playedCards = Vector.empty,
+        state = PlayingState,
+        isFirstTrick = false
+      )
+      val xml = Game.toXml(game)
+      val restored = Game.fromXml(xml)
+      restored.isFirstTrick should be(false)
+    }
+
+    "deserialize game JSON with missing playerHands and scoredRanks" in {
+      val json = play.api.libs.json.Json.parse("""{"playedCards":[],"state":"Playing","trickCount":0,"passedPlayers":[],"finishOrder":[]}""")
+      val result = json.as[Game]
+      result.playerHands should be(Map.empty)
+      result.scoredRanks should be(Map.empty)
+    }
+
+    "fail to deserialize game JSON with invalid player entry" in {
+      val valid = HumanPlayer("Alice")
+      val json = play.api.libs.json.Json.parse(s"""{
+        "playerHands": [
+          {"player": {"type": "Human", "name": "Alice", "id": "${valid.id}"}, "cards": []},
+          {"player": {"type": "Computer", "name": "Bot", "strategy": "NonExistent"}, "cards": []},
+          {"player": {"type": "Human", "name": "Bob", "id": "${java.util.UUID.randomUUID()}"}, "cards": []}
+        ],
+        "playedCards": [], "state": "Playing", "trickCount": 0, "passedPlayers": [], "finishOrder": []
+      }""")
+      json.validate[Game].isError should be(true)
+    }
+
+    "fail to deserialize game JSON with invalid scoredRank entry" in {
+      val alice = HumanPlayer("Alice")
+      val bob = HumanPlayer("Bob")
+      val json = play.api.libs.json.Json.parse(s"""{
+        "playerHands": [{"player": {"type": "Human", "name": "Alice", "id": "${alice.id}"}, "cards": []}],
+        "playedCards": [], "state": "Playing", "trickCount": 0, "passedPlayers": [], "finishOrder": [],
+        "scoredRanks": [
+          {"player": {"type": "Human", "name": "Alice", "id": "${alice.id}"}, "score": 1},
+          {"player": {"type": "Computer", "name": "Bot", "strategy": "NonExistent"}, "score": 5},
+          {"player": {"type": "Human", "name": "Bob", "id": "${bob.id}"}, "score": 2}
+        ]
+      }""")
+      json.validate[Game].isError should be(true)
     }
   }
 

@@ -7,13 +7,14 @@ import de.htwg_konstanz.se.controller.strategies.{
   PlayRandomCardStrategy
 }
 import de.htwg_konstanz.se.models.*
-import de.htwg_konstanz.se.ui.gui.{GuiViews, IGuiPresenter, View}
+import de.htwg_konstanz.se.ui.IPresenter
+import de.htwg_konstanz.se.ui.gui.{GuiViews, View}
 import scalafx.collections.ObservableBuffer
 import scalafx.geometry.{Insets, Pos}
 import scalafx.scene.control.*
 import scalafx.scene.layout.*
 
-case class LobbyView(p: IGuiPresenter) extends BorderPane {
+case class LobbyView(p: IPresenter) extends BorderPane {
   padding = Insets(24)
 
   var game: Game = p.controller.getGame

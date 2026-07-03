@@ -4,7 +4,7 @@ import play.api.libs.json.*
 import scala.util.{Failure, Success, Try}
 import scala.xml.*
 
-sealed trait GameState {
+trait GameState {
   def canJoin: Boolean
   def canQuit: Boolean
   def canStart: Boolean
@@ -148,67 +148,67 @@ case object PlayingState extends GameState {
   }
 
   private def leadTrick(game: Game, player: IPlayer, card: Card): Try[Game] = {
-    val hand = game.playerHands(player)
-    val cardsOfRank = hand.filter(c => c.rank == card.rank)
-
-    if (cardsOfRank.isEmpty) {
-      Failure(Exception("Cannot lead with this card - must play cards of same rank."))
-    } else if (cardsOfRank.size >= 4) {
-      val fourCards = cardsOfRank.take(4)
-      val updatedHands = game.playerHands.updated(player, fourCards.foldLeft(hand)((h, c) => h.filterNot(_ == c)))
-      val isGameOver = updatedHands(player).isEmpty
-      val updatedState = if (isGameOver) EndedState else PlayingState
-      val updatedFinishOrder =
-        if (isGameOver && !game.finishOrder.contains(player)) game.finishOrder :+ player else game.finishOrder
-      Success(
-        game.copy(
-          playerHands = updatedHands,
-          playedCards = Vector.empty,
-          state = updatedState,
-          currentPlayer = if (isGameOver) None else Some(player),
-          trickCount = 0,
-          trickRank = None,
-          trickLeader = None,
-          passedPlayers = Set.empty,
-          finishOrder = updatedFinishOrder
-        )
-      )
+    if (game.isFirstTrick && card != Card.ThreeOfClubs) {
+      Failure(Exception("Must play Three of Clubs to start the round."))
     } else {
-      val updatedHands = game.playerHands.updated(player, hand.filterNot(_ == card))
-      val updatedState = if (updatedHands(player).isEmpty) EndedState else PlayingState
-      val updatedFinishOrder =
-        if (updatedHands(player).isEmpty && !game.finishOrder.contains(player)) game.finishOrder :+ player
-        else game.finishOrder
-      val nextPlayer =
-        if (updatedState == EndedState) None
-        else game.playerHands.keys.find(_ != player)
-      Success(
-        game.copy(
-          playerHands = updatedHands,
-          playedCards = game.playedCards :+ card,
-          state = updatedState,
-          currentPlayer = nextPlayer,
-          trickCount = 1,
-          trickRank = Some(card.rank),
-          trickLeader = Some(player),
-          finishOrder = updatedFinishOrder
+      val hand = game.playerHands(player)
+      val cardsOfRank = hand.filter(c => c.rank == card.rank)
+
+      if (cardsOfRank.size >= 4) {
+        val fourCards = cardsOfRank.take(4)
+        val updatedHands = game.playerHands.updated(player, fourCards.foldLeft(hand)((h, c) => h.filterNot(_ == c)))
+        val isGameOver = updatedHands(player).isEmpty
+        val updatedState = if (isGameOver) EndedState else PlayingState
+        val updatedFinishOrder =
+          if (isGameOver && !game.finishOrder.contains(player)) game.finishOrder :+ player else game.finishOrder
+        Success(
+          game.copy(
+            playerHands = updatedHands,
+            playedCards = Vector.empty,
+            state = updatedState,
+            currentPlayer = if (isGameOver) None else Some(player),
+            trickCount = 0,
+            trickRank = None,
+            trickLeader = None,
+            passedPlayers = Set.empty,
+            finishOrder = updatedFinishOrder,
+            isFirstTrick = false
+          )
         )
-      )
+      } else {
+        val updatedHands = game.playerHands.updated(player, hand.filterNot(_ == card))
+        val updatedState = if (updatedHands(player).isEmpty) EndedState else PlayingState
+        val updatedFinishOrder =
+          if (updatedHands(player).isEmpty && !game.finishOrder.contains(player)) game.finishOrder :+ player
+          else game.finishOrder
+        val nextPlayer =
+          if (updatedState == EndedState) None
+          else game.playerHands.keys.find(_ != player)
+        Success(
+          game.copy(
+            playerHands = updatedHands,
+            playedCards = game.playedCards :+ card,
+            state = updatedState,
+            currentPlayer = nextPlayer,
+            trickCount = 1,
+            trickRank = Some(card.rank),
+            trickLeader = Some(player),
+            finishOrder = updatedFinishOrder,
+            isFirstTrick = false
+          )
+        )
+      }
     }
   }
 
   private def respondToTrick(game: Game, player: IPlayer, card: Card): Try[Game] = {
     val hand = game.playerHands(player)
-    val lastPlayed = game.playedCards.lastOption
+    val lastPlayed = game.playedCards.last
 
-    if (!hand.contains(card)) {
-      Failure(Exception(s"Player $player does not have card $card in hand."))
-    } else if (lastPlayed.isEmpty) {
-      Failure(Exception("No cards have been played yet."))
-    } else if (game.trickRank.exists(tr => Game.getRankPower(card.rank) <= Game.getRankPower(tr))) {
+    if (game.trickRank.exists(tr => Game.getRankPower(card.rank) <= Game.getRankPower(tr))) {
       val rankStr = game.trickRank.map(r => s"$r").getOrElse("unknown")
       Failure(Exception(s"Must play a card higher than $rankStr."))
-    } else if (!Game.canBeat(card, lastPlayed.get)) {
+    } else if (!Game.canBeat(card, lastPlayed)) {
       Failure(Exception("Played card must outrank the previous card."))
     } else {
       completeCardPlay(game, player, card)
@@ -352,16 +352,15 @@ case object EndedState extends GameState {
               val player = players(index % players.size)
               hands.updated(player, hands.getOrElse(player, Vector.empty) :+ card)
           }
-          val sortedByRank = game.finishOrder
-          val president = sortedByRank.headOption
-          val vicePresident = sortedByRank.drop(1).headOption
-          val viceScum = sortedByRank.dropRight(1).headOption
-          val scum = sortedByRank.lastOption
+           val sortedByRank = game.finishOrder
+           val president = sortedByRank.headOption
+           val vicePresident = sortedByRank.drop(1).headOption
+           val scum = sortedByRank.lastOption
 
           val exchangedHands = (president, scum) match {
             case (Some(pres), Some(sc)) =>
               val vp = vicePresident.filter(p => p != pres && p != sc)
-              val vsc = viceScum.filter(p => p != pres && p != sc && !vp.contains(p))
+              val vsc: Option[IPlayer] = None
               Game.exchangeCards(pres, sc, vp, vsc, dealtHands)
             case _ => dealtHands
           }

@@ -3,6 +3,7 @@ package de.htwg_konstanz.se.ui.gui
 import com.google.inject.Inject
 import de.htwg_konstanz.se.controller.IController
 import de.htwg_konstanz.se.models.*
+import de.htwg_konstanz.se.ui.IPresenter
 import de.htwg_konstanz.se.util.Listener
 import javafx.application.Platform
 import scalafx.animation.FadeTransition
@@ -15,13 +16,8 @@ import scalafx.util.Duration
 
 import scala.compiletime.uninitialized
 
-case class GuiPresident @Inject() (controller: IController) extends Listener, JFXApp3 {
+case class GuiPresident @Inject() (controller: IController, presenter: IPresenter) extends Listener, JFXApp3 {
   controller.add(this)
-
-  private val presenter = new GuiPresenter(
-    controller,
-    onRefresh = () => refreshView()
-  )
 
   private var listenerRegistered = false
   private var showingSplash = true

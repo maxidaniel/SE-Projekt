@@ -23,11 +23,11 @@ case class PlayBestCardStrategy() extends IStrategy {
     if cards.isEmpty then None
     else
       lastPlayed match
-        case None       => Some(cards.sortBy(c => -Game.getPower(c)).head)
+        case None       => Some(cards.minBy(c => -Game.getPower(c)))
         case Some(last) =>
           val filtered = cards.filter(c => Game.canBeat(c, last))
           if filtered.isEmpty then None
-          else Some(filtered.sortBy(c => -Game.getPower(c)).head)
+          else Some(filtered.minBy(c => -Game.getPower(c)))
 
   override def shouldAcceptExchange(hand: Vector[Card], offeredCards: Vector[Card], position: String): Boolean = {
     if offeredCards.isEmpty || hand.isEmpty then return false

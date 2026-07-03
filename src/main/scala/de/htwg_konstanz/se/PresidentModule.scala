@@ -4,8 +4,9 @@ import com.google.inject.{AbstractModule, Provider, Singleton}
 import de.htwg_konstanz.se.controller.{GameController, IController}
 import de.htwg_konstanz.se.io.{ISaveManager, JsonSaveManager, XmlSaveManager}
 import de.htwg_konstanz.se.models.{Game, GameFactory}
-import de.htwg_konstanz.se.ui.gui.GuiPresident
-import de.htwg_konstanz.se.ui.tui.TuiReisen
+import de.htwg_konstanz.se.ui.IPresenter
+import de.htwg_konstanz.se.ui.gui.{GuiPresenter, GuiPresident}
+import de.htwg_konstanz.se.ui.tui.{TuiPresenter, TuiReisen}
 import de.htwg_konstanz.se.util.{IUndoManager, UndoManager}
 import net.codingwell.scalaguice.ScalaModule
 
@@ -23,8 +24,12 @@ class PresidentModule(val guiMode: GuiMode, val saveFormat: SaveFormat) extends 
     bind[IController].to[GameController].in[Singleton]()
 
     guiMode match {
-      case GuiMode.Gui => bind(classOf[GuiPresident])
-      case GuiMode.Tui => bind(classOf[TuiReisen])
+      case GuiMode.Gui => 
+        bind[IPresenter].to[GuiPresenter]
+        bind[GuiPresident].in[Singleton]()
+      case GuiMode.Tui => 
+        bind[IPresenter].to[TuiPresenter]
+        bind[TuiReisen].in[Singleton]()
     }
   }
 }

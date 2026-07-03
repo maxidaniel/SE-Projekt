@@ -149,6 +149,17 @@ class StrategySpec extends AnyWordSpec {
       results should contain(true)
       results should contain(false)
     }
+
+    "play returns None when cards are empty" in {
+      val strategy = PlayRandomCardStrategy()
+      strategy.play(Vector.empty, Some(Card.FourOfHearts)) should be(None)
+    }
+
+    "play returns None when no cards beat lastPlayed" in {
+      val strategy = PlayRandomCardStrategy()
+      val cards = Vector(Card.ThreeOfHearts, Card.FiveOfSpades)
+      strategy.play(cards, Some(Card.TwoOfHearts)) should be(None)
+    }
   }
 
   "BestPlayStrategy" should {
@@ -257,6 +268,17 @@ class StrategySpec extends AnyWordSpec {
       val offered = Vector(Card.KingOfHearts, Card.AceOfHearts)
 
       strategy.shouldAcceptExchange(hand, offered, "unknown_position") should be(true)
+    }
+
+    "play returns None when cards are empty" in {
+      val strategy = PlayBestCardStrategy()
+      strategy.play(Vector.empty, Some(Card.FourOfHearts)) should be(None)
+    }
+
+    "play returns None when no cards beat lastPlayed" in {
+      val strategy = PlayBestCardStrategy()
+      val cards = Vector(Card.ThreeOfHearts, Card.FiveOfSpades)
+      strategy.play(cards, Some(Card.TwoOfHearts)) should be(None)
     }
   }
 }
