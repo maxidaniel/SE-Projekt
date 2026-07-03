@@ -142,6 +142,14 @@ class PlayerSpec extends AnyWordSpec {
       )
       json.validate[IPlayer].isError should be(true)
     }
+
+    "deserialize HumanPlayer with missing id" in {
+      val json = Json.obj("type" -> "Human", "name" -> "Alice")
+      val player = json.as[IPlayer]
+      player.name should be("Alice")
+      player shouldBe a[HumanPlayer]
+      player.id should not be null
+    }
   }
 
   "IPlayer XML serialization" should {

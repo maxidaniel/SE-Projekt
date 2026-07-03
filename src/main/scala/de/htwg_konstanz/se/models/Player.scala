@@ -43,12 +43,6 @@ object IPlayer:
           "name" -> "Unknown",
           "id" -> UnknownPlayer.id.toString
         )
-      case p =>
-        Json.obj(
-          "type" -> "Unknown",
-          "name" -> p.name,
-          "id" -> p.id.toString
-        )
 
   given Reads[IPlayer] = Reads { json =>
     val playerType = (json \ "type").asOpt[String].getOrElse("Unknown")
@@ -73,8 +67,6 @@ object IPlayer:
       <player type="Computer" name={c.name} id={c.id.toString} strategy={strategyName}/>
     case UnknownPlayer =>
       <player type="Unknown" name="Unknown" id={UnknownPlayer.id.toString}/>
-    case p =>
-      <player type="Unknown" name={p.name} id={p.id.toString}/>
 
   def fromXml(xml: NodeSeq): IPlayer =
     val playerType = (xml \ "@type").text

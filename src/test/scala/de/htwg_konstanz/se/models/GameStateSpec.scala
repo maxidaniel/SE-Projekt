@@ -189,6 +189,10 @@ class GameStateSpec extends AnyWordSpec {
       PlayingState.canPlayCard should be(true)
     }
 
+    "allow passTrick" in {
+      PlayingState.canPassTrick should be(true)
+    }
+
     "transition join fail" in {
       val game = Game(Map.empty, Vector.empty, PlayingState)
       PlayingState.transition(game, Join(alice)).isFailure should be(true)
@@ -393,11 +397,11 @@ class GameStateSpec extends AnyWordSpec {
       PlayingState.transition(game, PlayCard(alice, Card.FiveOfClubs)).isFailure should be(true)
     }
 
-    "leadTrick with card of different rank than requested" in {
+    "leadTrick with Three of Clubs at round start" in {
       val bob = HumanPlayer("Bob")
       val game = Game(
         Map(
-          alice -> Vector(Card.ThreeOfHearts, Card.FourOfHearts),
+          alice -> Vector(Card.ThreeOfClubs, Card.FourOfHearts),
           bob -> Vector(Card.FiveOfClubs),
           charlie -> Vector(Card.SixOfHearts),
           dave -> Vector(Card.SevenOfHearts)
@@ -409,7 +413,46 @@ class GameStateSpec extends AnyWordSpec {
         None,
         None
       )
-      PlayingState.transition(game, PlayCard(alice, Card.ThreeOfHearts)).isSuccess should be(true)
+      PlayingState.transition(game, PlayCard(alice, Card.ThreeOfClubs)).isSuccess should be(true)
+    }
+
+    "leadTrick fail when not playing Three of Clubs at round start" in {
+      val bob = HumanPlayer("Bob")
+      val game = Game(
+        Map(
+          alice -> Vector(Card.ThreeOfClubs, Card.FourOfHearts),
+          bob -> Vector(Card.FiveOfClubs),
+          charlie -> Vector(Card.SixOfHearts),
+          dave -> Vector(Card.SevenOfHearts)
+        ),
+        Vector.empty,
+        PlayingState,
+        Some(alice),
+        0,
+        None,
+        None
+      )
+      PlayingState.transition(game, PlayCard(alice, Card.FourOfHearts)).isFailure should be(true)
+    }
+
+    "leadTrick allow any card after first trick" in {
+      val bob = HumanPlayer("Bob")
+      val game = Game(
+        Map(
+          alice -> Vector(Card.FourOfHearts),
+          bob -> Vector(Card.FiveOfClubs),
+          charlie -> Vector(Card.SixOfHearts),
+          dave -> Vector(Card.SevenOfHearts)
+        ),
+        Vector.empty,
+        PlayingState,
+        Some(alice),
+        0,
+        None,
+        None,
+        isFirstTrick = false
+      )
+      PlayingState.transition(game, PlayCard(alice, Card.FourOfHearts)).isSuccess should be(true)
     }
 
     "respondToTrick fail when card not in hand" in {

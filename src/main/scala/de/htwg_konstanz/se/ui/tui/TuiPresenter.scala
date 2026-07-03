@@ -4,13 +4,13 @@ import de.htwg_konstanz.se.controller.IController
 import de.htwg_konstanz.se.controller.strategies.IStrategy
 import de.htwg_konstanz.se.models.*
 import de.htwg_konstanz.se.models.PlayerType.Computer
-import de.htwg_konstanz.se.ui.gui.{IGuiPresenter, View}
+import de.htwg_konstanz.se.ui.IPresenter
+import de.htwg_konstanz.se.ui.gui.View
 import de.htwg_konstanz.se.ui.gui.PresidentViewModel
 
 class TuiPresenter(
-    val controller: IController,
-    val onRefresh: () => Unit = () => ()
-) extends IGuiPresenter:
+    val controller: IController
+) extends IPresenter:
   val viewModel: PresidentViewModel = PresidentViewModel(controller)
 
   def currentView: View = viewModel.currentView
@@ -20,7 +20,6 @@ class TuiPresenter(
 
   def navigateTo(view: View): Unit =
     viewModel.currentView = view
-    onRefresh()
 
   def addPlayer(name: String): Unit =
     val trimmed = name.trim
@@ -65,7 +64,6 @@ class TuiPresenter(
 
   def handleEvent(event: GameEvent): Unit =
     viewModel.handleEvent(event)
-    onRefresh()
 
   def isComputerTurn: Boolean =
     val game = controller.getGame

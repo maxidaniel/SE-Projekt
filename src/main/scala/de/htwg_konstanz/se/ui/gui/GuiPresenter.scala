@@ -4,6 +4,7 @@ import de.htwg_konstanz.se.controller.IController
 import de.htwg_konstanz.se.controller.strategies.IStrategy
 import de.htwg_konstanz.se.models.*
 import de.htwg_konstanz.se.models.PlayerType.Computer
+import de.htwg_konstanz.se.ui.IPresenter
 
 /** Core GUI logic with no JavaFX dependencies.
   *
@@ -14,8 +15,7 @@ import de.htwg_konstanz.se.models.PlayerType.Computer
   */
 class GuiPresenter(
     val controller: IController,
-    val onRefresh: () => Unit = () => ()
-) extends IGuiPresenter {
+) extends IPresenter {
   val viewModel: PresidentViewModel = PresidentViewModel(controller)
 
   def currentView: View = viewModel.currentView
@@ -25,7 +25,6 @@ class GuiPresenter(
 
   def navigateTo(view: View): Unit = {
     viewModel.currentView = view
-    onRefresh()
   }
 
   def addPlayer(name: String): Unit = {
@@ -75,7 +74,6 @@ class GuiPresenter(
 
   def handleEvent(event: GameEvent): Unit = {
     viewModel.handleEvent(event)
-    onRefresh()
   }
 
   def isComputerTurn: Boolean = {

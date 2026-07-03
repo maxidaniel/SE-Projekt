@@ -2,7 +2,8 @@ package de.htwg_konstanz.se.ui.gui.views
 
 import de.htwg_konstanz.se.models.*
 import de.htwg_konstanz.se.models.PlayerType.Computer
-import de.htwg_konstanz.se.ui.gui.{GuiViews, IGuiPresenter, View}
+import de.htwg_konstanz.se.ui.IPresenter
+import de.htwg_konstanz.se.ui.gui.{GuiViews, View}
 import scalafx.Includes.*
 import scalafx.collections.ObservableHashSet
 import scalafx.geometry.{Insets, Pos}
@@ -10,7 +11,7 @@ import scalafx.scene.control.*
 import scalafx.scene.layout.*
 import scalafx.stage.FileChooser
 
-case class GameView(p: IGuiPresenter) extends BorderPane {
+case class GameView(p: IPresenter) extends BorderPane {
   padding = Insets(24)
 
   var game: Game = p.controller.getGame

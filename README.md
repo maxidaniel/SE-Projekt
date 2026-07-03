@@ -2,14 +2,14 @@
 
 [![Scala CI](https://github.com/maxidaniel/SE-Projekt/actions/workflows/build.yml/badge.svg)](https://github.com/maxidaniel/SE-Projekt/actions/workflows/build.yml) [![Coverage Status](https://coveralls.io/repos/github/maxidaniel/SE-Projekt/badge.svg?branch=main)](https://coveralls.io/github/maxidaniel/SE-Projekt?branch=main)
 
-Ein President-Kartenspiel implementiert in Scala, mit menschlichen und KI-Spielern sowie verschiedenen Strategien.
+Ein President-Kartenspiel implementiert in Scala, mit menschlichen Spielern und Computergegner verschiedener Schwierigkeitsstufen.
 
 ## Funktionen
 
 - Vollständige Implementierung der President-Spielregeln
 - Unterstützung für 4-8 Spieler
-- Menschliche und KI-Spielmodi
-- Drei KI-Strategien: niedrigste Karte, zufällige Karte, höchste Karte
+- Spielmodi für menschliche Spieler und Computergegner
+- Drei Strategien für Computergegner: niedrigste Karte, zufällige Karte, höchste Karte
 - Kartentausch zwischen Präsident, Vizepräsident, Vize-Schwein und Schwein
 - Spielverwaltung mit verschiedenen Phasen
 - Umfassende Testabdeckung
@@ -73,7 +73,7 @@ Zwischen den Runden wird ein Kartentausch durchgeführt:
 - **Abgebrochen:** Das Spiel wurde abgebrochen
 - **Beendet:** Die Runde ist vorbei, Punkte werden vergeben
 
-### KI-Strategien
+### Computergegner-Strategien
 
 - **Niedrigste Karte:** Spielt immer die niedrigste gültige Karte
 - **Zufällige Karte:** Spielt eine zufällige gültige Karte
@@ -141,34 +141,33 @@ docker build -t president .
 ### Container ausführen
 
 ```bash
-# TUI starten (Standard)
+# Standard: sbt "run --tui --json"
 docker run -it --rm president
 
 # GUI starten
-docker run -it --rm -e APP_MODE=gui president
+docker run -it --rm president run --gui --json
 
 # TUI mit XML-Speicherung starten
-docker run -it --rm -e APP_MODE=tui -e SAVE_FORMAT=xml president
+docker run -it --rm president run --tui --xml
+
+# Beliebige sbt-Kommandos
+docker run -it --rm president test
+docker run -it --rm president "clean;compile"
 ```
 
-Alternativ können Argumente direkt an die App übergeben werden:
-
-```bash
-docker run -it --rm president --tui --json
-docker run -it --rm president --gui --xml
-```
+CLI-Argumente hinter dem Imagenamen werden direkt als sbt-Kommando verwendet.
 
 ### GUI mit Host-Fenster (X11 / XWayland)
 
 ```bash
-# Für GUI/XWayland: DISPLAY aus Host übernehmen und X11-Socket + Xauthority teilen
+# Beispiel: GUI mit korrekt gesetztem DISPLAY
+# Falls DISPLAY leer ist: export DISPLAY=:0
 docker run -it --rm \
-  -e APP_MODE=gui \
-  -e DISPLAY="$DISPLAY" \
+  -e DISPLAY="${DISPLAY:-:0}" \
   -e XAUTHORITY=/tmp/.Xauthority \
   -v /tmp/.X11-unix:/tmp/.X11-unix:rw \
   -v "${XAUTHORITY:-$HOME/.Xauthority}:/tmp/.Xauthority:ro" \
-  president
+  president run --gui --json
 ```
 
 ## Projektstruktur

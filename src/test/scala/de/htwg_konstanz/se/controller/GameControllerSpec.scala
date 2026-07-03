@@ -635,7 +635,8 @@ class GameControllerSpec extends AnyWordSpec {
         Some(alice),
         0,
         None,
-        None
+        None,
+        isFirstTrick = false
       )
       val controller = new GameController(game, new UndoManager(), stubSaveManager)
       var observedTableClear: Option[TableClearedEvent] = None
@@ -820,6 +821,59 @@ class GameControllerSpec extends AnyWordSpec {
       }
       controller.deleteSave("test-path")
       observed.isDefined should be(true)
+    }
+
+    "passTrick ending game emits GameEndedEvent" in {
+      val game = Game(
+        Map(
+          alice -> Vector.empty,
+          bob -> Vector(Card.AceOfSpades),
+          charlie -> Vector(Card.QueenOfHearts),
+          dave -> Vector(Card.JackOfHearts)
+        ),
+        Vector(Card.FiveOfClubs),
+        PlayingState,
+        Some(bob),
+        1,
+        Some(CardRank.Five),
+        Some(alice),
+        Set(charlie, dave)
+      )
+      val controller = new GameController(game, new UndoManager(), stubSaveManager)
+      var observedEnded: Option[GameEndedEvent] = None
+      controller.add {
+        case e: GameEndedEvent => observedEnded = Some(e)
+        case _                 =>
+      }
+      controller.passTrick(bob)
+      observedEnded.isDefined should be(true)
+    }
+
+    "emit TableClearedEvent with TrickWon when responder ends trick via playCard" in {
+      val game = Game(
+        Map(
+          alice -> Vector(Card.KingOfHearts),
+          bob -> Vector(Card.AceOfSpades, Card.ThreeOfHearts),
+          charlie -> Vector(Card.QueenOfHearts),
+          dave -> Vector(Card.JackOfHearts)
+        ),
+        Vector(Card.FiveOfClubs),
+        PlayingState,
+        Some(bob),
+        1,
+        Some(CardRank.Five),
+        Some(alice),
+        Set(charlie, dave)
+      )
+      val controller = new GameController(game, new UndoManager(), stubSaveManager)
+      var observedTableClear: Option[TableClearedEvent] = None
+      controller.add {
+        case e: TableClearedEvent => observedTableClear = Some(e)
+        case _                    =>
+      }
+      controller.playCard(bob, Card.AceOfSpades)
+      observedTableClear.isDefined should be(true)
+      observedTableClear.get.reason should be(TableClearReason.TrickWon)
     }
   }
 }

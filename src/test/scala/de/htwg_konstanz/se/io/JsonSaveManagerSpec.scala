@@ -163,3 +163,23 @@ class JsonSaveManagerSpec extends AnyWordSpec:
       Files.deleteIfExists(tempDir.resolve("sub/dir"))
       Files.deleteIfExists(tempDir.resolve("sub"))
       Files.deleteIfExists(tempDir)
+
+    "fail on invalid JSON format" in:
+      val manager = JsonSaveManager()
+      val tempFile = Files.createTempFile("test-invalid", ".json")
+      Files.writeString(tempFile, "not valid json {{{")
+
+      val result = manager.load(tempFile.toString)
+      result.isFailure should be(true)
+
+      Files.deleteIfExists(tempFile)
+
+    "fail on valid JSON with invalid game structure" in:
+      val manager = JsonSaveManager()
+      val tempFile = Files.createTempFile("test-invalid-struct", ".json")
+      Files.writeString(tempFile, """{"playerHands": "not_an_array"}""")
+
+      val result = manager.load(tempFile.toString)
+      result.isFailure should be(true)
+
+      Files.deleteIfExists(tempFile)

@@ -1,13 +1,14 @@
 package de.htwg_konstanz.se.ui.gui.views
 
-import de.htwg_konstanz.se.ui.gui.{GuiViews, IGuiPresenter, View}
+import de.htwg_konstanz.se.ui.IPresenter
+import de.htwg_konstanz.se.ui.gui.{GuiViews, View}
 import scalafx.Includes.*
 import scalafx.geometry.{Insets, Pos}
 import scalafx.scene.control.*
 import scalafx.scene.layout.*
 import scalafx.stage.FileChooser
 
-case class MenuView(p: IGuiPresenter) extends BorderPane {
+case class MenuView(p: IPresenter) extends BorderPane {
   padding = Insets(32)
 
   var titleLabel: Label = GuiViews.titleLabel("President")

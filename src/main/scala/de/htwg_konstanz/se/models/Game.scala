@@ -18,7 +18,8 @@ case class Game(
     passedPlayers: Set[IPlayer] = Set.empty,
     scoredRanks: Map[IPlayer, Int] = Map.empty,
     roundNumber: Int = 1,
-    finishOrder: Vector[IPlayer] = Vector.empty
+    finishOrder: Vector[IPlayer] = Vector.empty,
+    isFirstTrick: Boolean = true
 ) {
   def this() = {
     this(Map.empty, Vector.empty, WaitingForPlayers, None, 0, None, None, Set.empty, Map.empty, 1, Vector.empty)
@@ -119,7 +120,8 @@ object Game:
         "passedPlayers" -> passedPlayersJson,
         "scoredRanks" -> scoredRanksJson,
         "roundNumber" -> game.roundNumber,
-        "finishOrder" -> finishOrderJson
+        "finishOrder" -> finishOrderJson,
+        "isFirstTrick" -> game.isFirstTrick
       )
 
     def reads(json: JsValue): JsResult[Game] =
@@ -148,7 +150,8 @@ object Game:
         passedPlayers = passedPlayers,
         scoredRanks = scoredRanks,
         roundNumber = (json \ "roundNumber").validate[Int].getOrElse(1),
-        finishOrder = finishOrder
+        finishOrder = finishOrder,
+        isFirstTrick = (json \ "isFirstTrick").validate[Boolean].getOrElse(true)
       )
 
   def toXml(game: Game): Elem =
@@ -174,7 +177,7 @@ object Game:
     }.toSeq
     val finishOrderChildren = game.finishOrder.map(IPlayer.toXml)
 
-    <game roundNumber={game.roundNumber.toString}>
+    <game roundNumber={game.roundNumber.toString} isFirstTrick={game.isFirstTrick.toString}>
       <playerHands>{playerHandsChildren}</playerHands>
       <playedCards>{playedCardsChildren}</playedCards>
       {GameState.toXml(game.state)}
@@ -214,6 +217,7 @@ object Game:
     }.toMap
     val finishOrder = (xml \ "finishOrder" \ "player").map(IPlayer.fromXml).toVector
     val roundNumber = (xml \ "@roundNumber").text.toIntOption.getOrElse(1)
+    val isFirstTrick = (xml \ "@isFirstTrick").text.toBooleanOption.getOrElse(true)
 
     Game(
       playerHands = playerHands,
@@ -226,7 +230,8 @@ object Game:
       passedPlayers = passedPlayers,
       scoredRanks = scoredRanks,
       roundNumber = roundNumber,
-      finishOrder = finishOrder
+      finishOrder = finishOrder,
+      isFirstTrick = isFirstTrick
     )
 
   private val rankPower: Map[CardRank, Int] = Map(

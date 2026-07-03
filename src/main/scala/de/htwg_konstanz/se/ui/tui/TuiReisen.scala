@@ -1,10 +1,12 @@
 package de.htwg_konstanz.se.ui.tui
 
+import com.google.inject.Inject
 import de.htwg_konstanz.se.controller.IController
 import de.htwg_konstanz.se.controller.strategies.*
 import de.htwg_konstanz.se.models.GameState.*
 import de.htwg_konstanz.se.models.PlayerType.{Computer, Human, Unknown}
-import de.htwg_konstanz.se.models.{Card, Game, GameEvent, GameExitEvent}
+import de.htwg_konstanz.se.models.{Game, GameEvent, GameExitEvent}
+import de.htwg_konstanz.se.ui.IPresenter
 import de.htwg_konstanz.se.ui.gui.View
 import de.htwg_konstanz.se.util.Listener
 import org.jline.keymap.{BindingReader, KeyMap}
@@ -13,7 +15,6 @@ import org.jline.reader.impl.DefaultHighlighter
 import org.jline.reader.impl.history.DefaultHistory
 import org.jline.terminal.{Terminal, TerminalBuilder}
 import org.jline.utils.AttributedString
-import com.google.inject.Inject
 
 enum GameTab:
   case Players, Scores, Hands
@@ -92,13 +93,8 @@ class PresidentHighlighter extends DefaultHighlighter:
       if parts.length > 1 then builder.style(pathStyle).append(" ").append(parts(1))
     builder.toAttributedString
 
-case class TuiReisen @Inject() (controller: IController) extends Listener:
+case class TuiReisen @Inject() (controller: IController, presenter: IPresenter) extends Listener:
   controller.add(this)
-
-  private val presenter = TuiPresenter(
-    controller,
-    onRefresh = () => refresh()
-  )
 
   private val Esc = "\u001b"
   private val Up = "\u001b[A"
@@ -528,7 +524,7 @@ case class TuiReisen @Inject() (controller: IController) extends Listener:
       val rank = game.trickRank.map(_.name).getOrElse("")
       val leader = game.trickLeader.map(_.name).getOrElse("")
       val extra =
-        if rank.nonEmpty then s"  (${rank} by ${leader})".dim
+        if rank.nonEmpty then s"  ($rank by $leader)".dim
         else ""
       Vector(s"  Cards on table:$extra  $cards")
 
