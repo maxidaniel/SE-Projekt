@@ -4,7 +4,7 @@ import com.google.inject.Inject
 import de.htwg_konstanz.se.controller.strategies.IStrategy
 import de.htwg_konstanz.se.io.ISaveManager
 import de.htwg_konstanz.se.models.*
-import de.htwg_konstanz.se.models.PlayerType.Computer
+import de.htwg_konstanz.se.models.PlayerType.{Computer, Human}
 import de.htwg_konstanz.se.util.{Command, UndoManager}
 
 import java.util.UUID
@@ -17,12 +17,12 @@ class GameController @Inject() (
     private val saveManager: ISaveManager
 ) extends IController {
   def join(name: String): Unit = {
-    val player = HumanPlayer(name)
+    val player = Player(Human, name)
     undoManager = undoManager.doStep(new JoinCommand(game, player))
   }
 
   def joinComputer(name: String, strategy: IStrategy): Unit = {
-    val player = ComputerPlayer(name, strategy)
+    val player = Player(Computer(strategy), name)
     undoManager = undoManager.doStep(new JoinCommand(game, player))
   }
 

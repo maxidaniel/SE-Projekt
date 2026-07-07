@@ -90,3 +90,11 @@ case class ComputerPlayer(myName: String, strategy: IStrategy, override val id: 
     extends IPlayer(myName, Computer(strategy), id)
 
 object UnknownPlayer extends IPlayer("Unknown", Unknown)
+
+object Player {
+  def apply(pType: PlayerType, name: String): IPlayer = pType match {
+    case PlayerType.Human => HumanPlayer(name)
+    case PlayerType.Computer(theStrategy) => ComputerPlayer(name, theStrategy)
+    case PlayerType.Unknown => UnknownPlayer
+  }
+}

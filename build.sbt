@@ -7,32 +7,18 @@ lazy val root = project
   .settings(
     name := "president",
     version := "0.1.0-SNAPSHOT",
-
     scalaVersion := scala3Version,
-
     libraryDependencies += "org.jline" % "jline-terminal" % "4.3.1",
     libraryDependencies += "org.jline" % "jline-reader" % "4.3.1",
     libraryDependencies += "org.jline" % "jline-console-ui" % "4.3.1",
     libraryDependencies += "org.scalactic" %% "scalactic" % "3.2.20",
     libraryDependencies += "org.scalatest" %% "scalatest" % "3.2.20" % "test",
-    libraryDependencies += "org.scalafx" %% "scalafx" % "25.0.2-R37",
+    libraryDependencies += "org.scalafx" %% "scalafx" % "21.0.0-R32",
     libraryDependencies += "net.codingwell" %% "scala-guice" % "7.0.0",
 
     // IO
     libraryDependencies += "org.scala-lang.modules" %% "scala-xml" % "2.4.0",
-    libraryDependencies += "org.playframework" %% "play-json" % "3.0.6",
-
-    libraryDependencies ++= {
-      // Determine OS version of JavaFX binaries
-      lazy val osName = System.getProperty("os.name") match {
-        case n if n.startsWith("Linux") => "linux"
-        case n if n.startsWith("Mac") => "mac"
-        case n if n.startsWith("Windows") => "win"
-        case _ => throw new Exception("Unknown platform!")
-      }
-      Seq("base", "controls", "fxml", "graphics", "media", "swing", "web")
-        .map(m => "org.openjfx" % s"javafx-$m" % "21" classifier osName)
-    }
+    libraryDependencies += "org.playframework" %% "play-json" % "3.0.6"
   )
 
 coverageExcludedPackages := "<empty>;.*ui.*"

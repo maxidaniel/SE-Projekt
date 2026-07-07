@@ -6,7 +6,6 @@ import de.htwg_konstanz.se.controller.strategies.*
 import de.htwg_konstanz.se.models.GameState.*
 import de.htwg_konstanz.se.models.PlayerType.{Computer, Human, Unknown}
 import de.htwg_konstanz.se.models.{Game, GameEvent, GameExitEvent}
-import de.htwg_konstanz.se.ui.IPresenter
 import de.htwg_konstanz.se.ui.gui.View
 import de.htwg_konstanz.se.util.Listener
 import org.jline.keymap.{BindingReader, KeyMap}
@@ -93,8 +92,10 @@ class PresidentHighlighter extends DefaultHighlighter:
       if parts.length > 1 then builder.style(pathStyle).append(" ").append(parts(1))
     builder.toAttributedString
 
-case class TuiReisen @Inject() (controller: IController, presenter: IPresenter) extends Listener:
+case class TuiReisen @Inject() (controller: IController) extends Listener:
   controller.add(this)
+
+  val presenter = TuiPresenter(controller)
 
   private val Esc = "\u001b"
   private val Up = "\u001b[A"

@@ -1,0 +1,25 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<game roundNumber="1" isFirstTrick="false">
+      <playerHands><entry>
+        <player type="Computer" name="Bot 1" id="e7d9feb7-9116-41b4-b6f2-7632fd61e6ae" strategy="PlayRandomCardStrategy"/>
+        <cards><card rank="five" suit="hearts"/><card rank="two" suit="clubs"/><card rank="ten" suit="hearts"/><card rank="six" suit="hearts"/><card rank="nine" suit="hearts"/><card rank="nine" suit="diamonds"/><card rank="six" suit="spades"/><card rank="four" suit="clubs"/><card rank="queen" suit="clubs"/><card rank="four" suit="diamonds"/></cards>
+      </entry><entry>
+        <player type="Computer" name="Bot 2" id="bcead8ff-c502-4f9f-8bb5-1b08ce87fac5" strategy="PlayLowestPossibleCardStrategy"/>
+        <cards><card rank="ten" suit="clubs"/><card rank="six" suit="diamonds"/><card rank="ace" suit="diamonds"/><card rank="nine" suit="clubs"/><card rank="three" suit="diamonds"/><card rank="jack" suit="spades"/><card rank="five" suit="clubs"/><card rank="eight" suit="hearts"/><card rank="five" suit="diamonds"/><card rank="eight" suit="spades"/><card rank="ace" suit="hearts"/></cards>
+      </entry><entry>
+        <player type="Computer" name="Bot 3" id="e7534544-9c04-47ab-bcc5-dafa75b73471" strategy="PlayBestCardStrategy"/>
+        <cards><card rank="seven" suit="hearts"/><card rank="three" suit="spades"/><card rank="ace" suit="spades"/><card rank="five" suit="spades"/><card rank="three" suit="hearts"/><card rank="king" suit="diamonds"/><card rank="king" suit="clubs"/><card rank="seven" suit="spades"/><card rank="nine" suit="spades"/><card rank="eight" suit="clubs"/><card rank="queen" suit="diamonds"/><card rank="six" suit="clubs"/></cards>
+      </entry><entry>
+        <player type="Computer" name="Bot 4" id="2cda2c8d-038e-4b2e-95cb-5378b6eb57b2" strategy="PlayLowestPossibleCardStrategy"/>
+        <cards><card rank="seven" suit="diamonds"/><card rank="seven" suit="clubs"/><card rank="ten" suit="diamonds"/><card rank="queen" suit="spades"/><card rank="eight" suit="diamonds"/><card rank="jack" suit="diamonds"/><card rank="king" suit="spades"/><card rank="ten" suit="spades"/><card rank="two" suit="diamonds"/><card rank="jack" suit="hearts"/><card rank="queen" suit="hearts"/></cards>
+      </entry></playerHands>
+      <playedCards></playedCards>
+      <state>Playing</state>
+      <currentPlayer><player type="Computer" name="Bot 1" id="e7d9feb7-9116-41b4-b6f2-7632fd61e6ae" strategy="PlayRandomCardStrategy"/></currentPlayer>
+      <trickCount>0</trickCount>
+      <trickRank/>
+      <trickLeader/>
+      <passedPlayers></passedPlayers>
+      <scoredRanks></scoredRanks>
+      <finishOrder></finishOrder>
+    </game>

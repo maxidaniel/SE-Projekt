@@ -1,7 +1,5 @@
 package de.htwg_konstanz.se.models
 
-import java.util.UUID
-
 object GameFactory {
   def create(players: Seq[IPlayer]): Game = {
     Game(

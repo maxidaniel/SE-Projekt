@@ -25,11 +25,12 @@ class PresidentModule(val guiMode: GuiMode, val saveFormat: SaveFormat) extends 
 
     guiMode match {
       case GuiMode.Gui => 
-        bind[IPresenter].to[GuiPresenter]
         bind[GuiPresident].in[Singleton]()
       case GuiMode.Tui => 
-        bind[IPresenter].to[TuiPresenter]
         bind[TuiReisen].in[Singleton]()
+      case _ =>
+        bind[TuiReisen].in[Singleton]()
+        bind[GuiPresident].in[Singleton]()
     }
   }
 }

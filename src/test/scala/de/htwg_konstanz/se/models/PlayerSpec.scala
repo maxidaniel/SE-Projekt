@@ -189,4 +189,45 @@ class PlayerSpec extends AnyWordSpec {
       restored should be(UnknownPlayer)
     }
   }
+
+  "Player(...)" should {
+    "create a HumanPlayer when given PlayerType.Human" in {
+      val player = Player(PlayerType.Human, "Alice")
+      player.name should be("Alice")
+      player shouldBe a[HumanPlayer]
+      player.playerType should be(PlayerType.Human)
+    }
+
+    "create a ComputerPlayer when given PlayerType.Computer" in {
+      val strategy = PlayLowestPossibleCardStrategy()
+      val player = Player(PlayerType.Computer(strategy), "Bot")
+      player.name should be("Bot")
+      player shouldBe a[ComputerPlayer]
+      player.playerType should be(PlayerType.Computer(strategy))
+    }
+
+    "create a ComputerPlayer with PlayRandomCardStrategy" in {
+      val strategy = PlayRandomCardStrategy()
+      val player = Player(PlayerType.Computer(strategy), "RandomBot")
+      player.name should be("RandomBot")
+      player shouldBe a[ComputerPlayer]
+      player.playerType.strategy should be(Some(strategy))
+    }
+
+    "return UnknownPlayer when given PlayerType.Unknown" in {
+      val player = Player(PlayerType.Unknown, "anything")
+      player should be(UnknownPlayer)
+      player.name should be("Unknown")
+      player.playerType should be(PlayerType.Unknown)
+    }
+
+    "assign a non-null id to created players" in {
+      val human = Player(PlayerType.Human, "Test")
+      human.id should not be null
+
+      val strategy = PlayLowestPossibleCardStrategy()
+      val computer = Player(PlayerType.Computer(strategy), "Test")
+      computer.id should not be null
+    }
+  }
 }

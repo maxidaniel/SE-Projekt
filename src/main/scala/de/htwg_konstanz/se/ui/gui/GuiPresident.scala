@@ -16,8 +16,10 @@ import scalafx.util.Duration
 
 import scala.compiletime.uninitialized
 
-case class GuiPresident @Inject() (controller: IController, presenter: IPresenter) extends Listener, JFXApp3 {
+case class GuiPresident @Inject() (controller: IController) extends Listener, JFXApp3 {
   controller.add(this)
+  
+  val presenter = GuiPresenter(controller)
 
   private var listenerRegistered = false
   private var showingSplash = true
